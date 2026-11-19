@@ -1,0 +1,171 @@
+name: build-filen-apk-armv7
+
+# Builds the Filen Android app (FilenCloudDienste/filen-ts, packages/filen-mobile) for 32-bit ARM
+# (armeabi-v7a) with minSdk lowered to 29 (Android 10), then publishes the APK as a GitHub Release.
+# Run: Actions tab, or `gh workflow run build.yml -R koedx/filen-apk-armv7`.
+# STATUS: UNVERIFIED -- no build has been run yet. Unofficial; AGPL-3.0 upstream.
+
+permissions:
+  contents: write   # lets the job create releases
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "filen-ts branch, tag or commit"
+        default: "main"
+      min_sdk:
+        description: "Android minSdk to patch in (upstream is 31; the tablet is API 29)"
+        default: "29"
+
+concurrency:
+  group: build-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_ENV: production
+  APP_ENV: production
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Free disk space (Hermes + Rust + Gradle are large)
+        run: |
+          set -x
+          df -h /
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost /usr/local/lib/node_modules
+          df -h /
+
+      - name: Checkout filen-ts
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          repository: FilenCloudDienste/filen-ts
+          ref: ${{ inputs.ref }}
+          path: filen-ts
+
+      - name: Check out the mobile submodules only
+        working-directory: filen-ts
+        run: git submodule update --init --recursive -- packages/filen-mobile/filen-rs packages/filen-mobile/filen-android-documents-provider
+
+      - name: Patch for 32-bit ARM and Android 10
+        working-directory: filen-ts/packages/filen-mobile
+        run: |
+          set -x
+          sed -i "s/^const ANDROID_MIN_SDK_VERSION: number = 31/const ANDROID_MIN_SDK_VERSION: number = ${{ inputs.min_sdk }}/" app.config.ts
+          sed -i 's/^const ANDROID_ABIS: string\[\] = \["x86_64", "arm64-v8a"\]/const ANDROID_ABIS: string[] = ["x86_64", "armeabi-v7a"]/' app.config.ts
+          sed -i "s/minSdk = 31/minSdk = ${{ inputs.min_sdk }}/" filen-android-documents-provider/app/build.gradle
+          git -C .. diff --stat
+          git -C .. diff -- . > "$RUNNER_TEMP/armv7-android10.diff"
+          # the provider is a submodule: its change is not part of the parent diff
+          git -C filen-android-documents-provider diff >> "$RUNNER_TEMP/armv7-android10.diff"
+          git -C .. diff --quiet && { echo "::error::patch did not apply"; exit 1; } || true
+          grep -n "ANDROID_MIN_SDK_VERSION: number\|ANDROID_ABIS: string" app.config.ts
+          grep -n "minSdk" filen-android-documents-provider/app/build.gradle
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
+        with:
+          package_json_file: filen-ts/package.json
+
+      - name: Set up Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: filen-ts/pnpm-lock.yaml
+
+      - name: Set up Java
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
+        with:
+          packages: platform-tools
+
+      - name: Install the pinned Rust nightly and Android targets
+        working-directory: filen-ts/packages/filen-mobile/filen-rs
+        run: |
+          set -x
+          cat rust-toolchain.toml
+          rustup toolchain install
+          rustup target add x86_64-linux-android armv7-linux-androideabi
+          rustc --version --verbose
+
+      - name: Install build tools for heif-decoder (meson, ninja, nasm)
+        run: sudo apt-get update && sudo apt-get install -y meson ninja-build nasm
+
+      - name: Install cargo-ndk
+        uses: taiki-e/cache-cargo-install-action@7447f04c51f2ba27ca35e7f1e28fab848c5b3ba7 # v2
+        with:
+          tool: cargo-ndk@4.1.2
+
+      - name: Point the build at the runner's NDK
+        run: |
+          set -x
+          echo "ANDROID_NDK_HOME=${ANDROID_NDK_LATEST_HOME:-$ANDROID_NDK_HOME}" >> "$GITHUB_ENV"
+          ls "${ANDROID_NDK_LATEST_HOME:-$ANDROID_NDK_HOME}" | head
+
+      - name: Install JS dependencies
+        working-directory: filen-ts
+        run: pnpm install --frozen-lockfile --filter @filen/mobile...
+        env:
+          NODE_ENV: development
+
+      - name: Write the secure-store fallback key to .env
+        working-directory: filen-ts/packages/filen-mobile
+        env:
+          KEY_SECRET: ${{ secrets.SECURE_STORE_UNSECURE_FALLBACK_ENCRYPTION_KEY }}
+        run: |
+          # Upstream refuses to build without this key (the app crashes at launch if it is missing).
+          # Set a repo secret once to keep it stable across builds; otherwise a random one is used.
+          KEY="${KEY_SECRET:-$(openssl rand -hex 32)}"
+          [ -z "$KEY_SECRET" ] && echo "::warning::No SECURE_STORE_UNSECURE_FALLBACK_ENCRYPTION_KEY secret; using a random key for this build"
+          printf 'EXPO_PUBLIC_SECURE_STORE_UNSECURE_FALLBACK_ENCRYPTION_KEY=%s\n' "$KEY" > .env
+
+      - name: Prebuild (generates android/, builds the Rust provider libraries)
+        working-directory: filen-ts/packages/filen-mobile
+        run: pnpm run prebuild:ci:android
+
+      - name: Build release APK
+        working-directory: filen-ts/packages/filen-mobile
+        run: |
+          set -o pipefail
+          cd android
+          chmod +x ./gradlew
+          ./gradlew -I ../gradle/hermes-unzip.init.gradle.kts app:assembleRelease 2>&1 | tee "$RUNNER_TEMP/gradle.log"
+
+      - name: Build diagnostics
+        if: failure()
+        run: |
+          df -h
+          grep -nE 'error:|FAILURE:|What went wrong|Execution failed|OutOfMemory|No space left|minSdk|requires' "$RUNNER_TEMP/gradle.log" | tail -40 || true
+
+      - name: Cleanup secrets
+        if: always()
+        run: rm -fv filen-ts/packages/filen-mobile/.env
+
+      - name: Show the APK ABIs
+        working-directory: filen-ts/packages/filen-mobile/android/app/build/outputs/apk/release
+        run: |
+          set -x
+          ls -la
+          unzip -l ./*.apk | grep -E "lib/.*\.so" | awk '{print $4}' | cut -d/ -f2 | sort | uniq -c
+
+      - name: Publish a GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -x
+          UPSTREAM=$(git -C filen-ts rev-parse --short HEAD)
+          TAG="apk-${UPSTREAM}-run${{ github.run_number }}"
+          APK=$(ls filen-ts/packages/filen-mobile/android/app/build/outputs/apk/release/*.apk | head -n1)
+          cp -v "$APK" "$RUNNER_TEMP/Filen-armv7.apk"
+          gh release create "$TAG" "$RUNNER_TEMP/Filen-armv7.apk" "$RUNNER_TEMP/armv7-android10.diff" \
+            --repo "${{ github.repository }}" \
+            --title "Filen APK armv7 (filen-ts ${UPSTREAM})" \
+            --notes "Unofficial build of FilenCloudDienste/filen-ts @ ${UPSTREAM}: armeabi-v7a + x86_64, minSdk ${{ inputs.min_sdk }}. Debug-signed. Patch in armv7-android10.diff. Source: https://github.com/FilenCloudDienste/filen-ts (AGPL-3.0)."
