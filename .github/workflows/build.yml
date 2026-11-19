@@ -104,6 +104,11 @@ jobs:
         with:
           tool: cargo-ndk@4.1.2
 
+      - name: Install the wild linker (filen-rs host builds, e.g. uniffi-bindgen, link with it)
+        uses: taiki-e/cache-cargo-install-action@7447f04c51f2ba27ca35e7f1e28fab848c5b3ba7 # v2
+        with:
+          tool: wild-linker@0.9.0
+
       - name: Use the runner's default NDK (r27), not the newest one
         run: |
           set -x
