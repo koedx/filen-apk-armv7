@@ -104,11 +104,14 @@ jobs:
         with:
           tool: cargo-ndk@4.1.2
 
-      - name: Point the build at the runner's NDK
+      - name: Use the runner's default NDK (r27), not the newest one
         run: |
           set -x
-          echo "ANDROID_NDK_HOME=${ANDROID_NDK_LATEST_HOME:-$ANDROID_NDK_HOME}" >> "$GITHUB_ENV"
-          ls "${ANDROID_NDK_LATEST_HOME:-$ANDROID_NDK_HOME}" | head
+          # NDK 30 headers reject the unversioned target triple that bindgen (heif-decoder) passes to clang
+          # ("Unversioned target triples are not supported"); the runner's default ANDROID_NDK_ROOT is r27.
+          ls "$(dirname "$ANDROID_NDK_ROOT")"
+          echo "ANDROID_NDK_HOME=$ANDROID_NDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$ANDROID_NDK_ROOT" >> "$GITHUB_ENV"
 
       - name: Install JS dependencies
         working-directory: filen-ts
