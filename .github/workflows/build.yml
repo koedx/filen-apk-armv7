@@ -124,6 +124,27 @@ jobs:
         env:
           NODE_ENV: development
 
+      - name: Build the SDK native library for armeabi-v7a (the npm package ships only arm64-v8a and x86_64)
+        run: |
+          set -euxo pipefail
+          # Source must match the published @filen/sdk-rs bindings, so build from its release tag, not the submodule pin.
+          VER=$(node -p "require('$(find filen-ts/node_modules/.pnpm -maxdepth 4 -type d -path '*node_modules/@filen/sdk-rs' | head -1)/package.json').version")
+          echo "sdk-rs npm version: $VER"
+          git clone --depth 1 --branch "filen-js@${VER}" https://github.com/FilenCloudDienste/filen-rs.git "$RUNNER_TEMP/filen-rs-sdk"
+          cd "$RUNNER_TEMP/filen-rs-sdk"
+          git submodule update --init --recursive --depth 1
+          rustup toolchain install
+          rustup target add armv7-linux-androideabi
+          cargo ndk -t armeabi-v7a -P 29 -o "$RUNNER_TEMP/sdk-jniLibs" build --release --locked -p filen-sdk-rs --features uniffi,heif-decoder,http-provider,cache,sync-engine
+          ls -l "$RUNNER_TEMP/sdk-jniLibs/armeabi-v7a"
+          PKG=$(cd "$GITHUB_WORKSPACE" && find filen-ts/node_modules/.pnpm -maxdepth 4 -type d -path '*node_modules/@filen/sdk-rs' | head -1)
+          PKG="$GITHUB_WORKSPACE/$PKG"
+          mkdir -p "$PKG/android/src/main/jniLibs/armeabi-v7a"
+          cp -v "$RUNNER_TEMP/sdk-jniLibs/armeabi-v7a/libfilen_sdk_rs.so" "$PKG/android/src/main/jniLibs/armeabi-v7a/"
+          grep -n abiFilters "$PKG/android/build.gradle"
+          sed -i 's/abiFilters "arm64-v8a", "x86_64"/abiFilters "armeabi-v7a", "x86_64"/' "$PKG/android/build.gradle"
+          grep -n abiFilters "$PKG/android/build.gradle"
+
       - name: Write the secure-store fallback key to .env
         working-directory: filen-ts/packages/filen-mobile
         env:
