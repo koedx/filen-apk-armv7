@@ -54,7 +54,7 @@ jobs:
         run: |
           set -x
           sed -i "s/^const ANDROID_MIN_SDK_VERSION: number = 31/const ANDROID_MIN_SDK_VERSION: number = ${{ inputs.min_sdk }}/" app.config.ts
-          sed -i 's/^const ANDROID_ABIS: string\[\] = \["x86_64", "arm64-v8a"\]/const ANDROID_ABIS: string[] = ["x86_64", "armeabi-v7a"]/' app.config.ts
+          sed -i 's/^const ANDROID_ABIS: string\[\] = \["x86_64", "arm64-v8a"\]/const ANDROID_ABIS: string[] = ["armeabi-v7a"]/' app.config.ts
           sed -i "s/minSdk = 31/minSdk = ${{ inputs.min_sdk }}/" filen-android-documents-provider/app/build.gradle
           git -C .. diff --stat
           git -C .. diff -- . > "$RUNNER_TEMP/armv7-android10.diff"
@@ -142,7 +142,7 @@ jobs:
           mkdir -p "$PKG/android/src/main/jniLibs/armeabi-v7a"
           cp -v "$RUNNER_TEMP/sdk-jniLibs/armeabi-v7a/libfilen_sdk_rs.so" "$PKG/android/src/main/jniLibs/armeabi-v7a/"
           grep -n abiFilters "$PKG/android/build.gradle"
-          sed -i 's/abiFilters "arm64-v8a", "x86_64"/abiFilters "armeabi-v7a", "x86_64"/' "$PKG/android/build.gradle"
+          sed -i 's/abiFilters "arm64-v8a", "x86_64"/abiFilters "armeabi-v7a"/' "$PKG/android/build.gradle"
           grep -n abiFilters "$PKG/android/build.gradle"
 
       - name: Write the secure-store fallback key to .env
@@ -197,4 +197,4 @@ jobs:
           gh release create "$TAG" "$RUNNER_TEMP/Filen-armv7.apk" "$RUNNER_TEMP/armv7-android10.diff" \
             --repo "${{ github.repository }}" \
             --title "Filen APK armv7 (filen-ts ${UPSTREAM})" \
-            --notes "Unofficial build of FilenCloudDienste/filen-ts @ ${UPSTREAM}: armeabi-v7a + x86_64, minSdk ${{ inputs.min_sdk }}. Debug-signed. Patch in armv7-android10.diff. Source: https://github.com/FilenCloudDienste/filen-ts (AGPL-3.0)."
+            --notes "Unofficial build of FilenCloudDienste/filen-ts @ ${UPSTREAM}: armeabi-v7a only, minSdk ${{ inputs.min_sdk }}. Debug-signed. Patch in armv7-android10.diff. Source: https://github.com/FilenCloudDienste/filen-ts (AGPL-3.0)."
