@@ -1,16 +1,20 @@
-# Status — 2026-11-24T06:55Z
+# Status — 2026-11-24T07:20Z
 
 ## UNVERIFIED claims
-- Run 5 crash cause: null future handle freed → 0 - 8 = 0xfffffff8 on 32-bit (crash-triage.md).
-- Candidate causes: failed async call with invalid handle; uniffi version mismatch between JS bindings and Rust lib(s); 32-bit handle truncation.
+- The ubrn RustBuffer size_t/u64 mismatch on armv7 causes the run-5 SIGSEGV (crash-triage.md). The mismatch itself is verified; the causal link is not.
+- The mechanism by which a null future handle reaches rust_future_free_pointer (crash-triage.md).
 
 ## Open questions
-- Who calls rust_future_free_pointer in src/generated/filen_sdk_rs.ts, and under what failure path?
-- Are libfilen_mobile_native_cache and libfilen_sdk_rs built against the same uniffi version?
-- Any usize/u64/pointer-width assumption in filen-rs that breaks on 32-bit?
+- Does run 6 (RustBuffer fix) launch past the ~5 s crash point?
+- If not: what do the run-6 crash pcs symbolicate to with the unstripped lib?
+
+## Answered (2026-11-24 source read)
+- Who calls rust_future_free_pointer: ubrn's generic `uniffiRustCallAsync` helper, in its `finally` block, for every pointer-returning async call (14 call sites in src/generated/filen_sdk_rs.ts).
+- Same uniffi version in both libs: yes, 0.29.4. Not the cause.
+- 32-bit pointer-width assumption: yes, in ubrn's C++ RustBuffer (size_t). Not in uniffi's handle encoding.
 
 ## Next steps (ordered)
-1. Read source (no CI cost): filen-rs at tag filen-js@0.5.34 and filen-ts packages/filen-mobile. Answer the open questions above. — Opus
-2. If still unclear: CI run with debug symbols (CARGO_PROFILE_RELEASE_DEBUG=1, publish unstripped libfilen_sdk_rs.so as a release asset) plus JS-side error logging. — Opus
-3. Write the delta installer (delta-installer.md). — Sonnet
-4. Re-dispatch CI with the fix (ABI patch ac73f55 already in), confirm APK ABIs, install, launch, capture logs: find package, logcat -c, `monkey -p io.filen.app -c android.intent.category.LAUNCHER 1`, wait ~10 s, grep log. — Sonnet
+1. Commit the workflow fix and dispatch run 6 on main (ac73f55 ABI change + RustBuffer patch + unstripped lib). — Sonnet
+2. While run 6 builds (~2 h): write the delta installer (delta-installer.md). — Sonnet
+3. Verify run-6 assets (size, sha256), install, launch, capture logs: find package, logcat -c, `monkey -p io.filen.app -c android.intent.category.LAUNCHER 1`, wait ~10 s, grep log. Confirm APK ABIs. — Sonnet
+4. If it still crashes: download libfilen_sdk_rs-armv7-unstripped.so.gz (to the Claude workspace, not the tablet) and symbolicate the tombstone pcs. — Opus

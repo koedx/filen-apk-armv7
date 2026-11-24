@@ -46,3 +46,18 @@ Supersedes: —
 What: Canonical spec in koedx/filen-apk-armv7 docs/; claude.ai Project "filen: armv7 apk" keeps a mirror under spec/, updated in the same session.
 Why: Versioned next to the code; the Project copy loads automatically at session start.
 Supersedes: handover-card-only state.
+
+## 2026-11-24T07:20Z — Patch ubrn RustBuffer to uint64_t in CI (commit bdfb115)
+What: After `pnpm install`, rewrite `size_t capacity/len` to `uint64_t` in ubrn's cpp/includes/RustBuffer.h, guarded by `static_assert(sizeof == 24 && alignof == 8)`.
+Why: The pinned ubrn (Enduriel fork e0282ad) lays out RustBuffer as 12 bytes on armv7, against uniffi 0.29.4's 24, which corrupts every RustBuffer crossing on 32-bit only. Upstream ubrn d3e421a makes the same change to fix a 32-bit ARM crash. Patching the header is smaller and safer than bumping the ubrn pin, because the generated bindings in @filen/sdk-rs@0.5.34 were made with the pinned generator.
+Supersedes: building with the unpatched pinned ubrn.
+
+## 2026-11-24T07:20Z — Line-tables-only SDK lib, unstripped copy as a release asset (commit bdfb115)
+What: Build libfilen_sdk_rs.so with CARGO_PROFILE_RELEASE_DEBUG=line-tables-only and publish the unstripped lib gzipped with each release.
+Why: Insurance. If run 6 still crashes, its pcs can be symbolicated without another ~2 h run. Line tables are enough for addr2line and much smaller than full debug info.
+Supersedes: the planned CARGO_PROFILE_RELEASE_DEBUG=1 diagnostic run (status.md next step 2, spec 2).
+
+## 2026-11-24T07:20Z — Dispatch run 6 with filen-ts pinned to the run-5 upstream commit
+What: Dispatch main (bdfb115 plus docs) with input ref=7153fce23f434bd1619cd47dc2d70d5d0cf0c491.
+Why: The condition for dispatching ac73f55 (a crash fix ready) is met. Pinning upstream to the run-5 commit keeps the RustBuffer fix and the ABI change the only variables, and maximizes delta-installer reuse against the installed run-5 APK.
+Supersedes: "Do not dispatch ac73f55 alone" (2026-11-24T06:23Z), whose condition is now met.

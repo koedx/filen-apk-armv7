@@ -1,6 +1,6 @@
 # Filen armv7 APK — spec index
 
-Version: spec 2 · 2026-11-24T06:55Z
+Version: spec 3 · 2026-11-24T07:20Z
 
 Read first each session: this file, then status.md.
 
@@ -10,7 +10,7 @@ Canonical copy: this `docs/` folder in koedx/filen-apk-armv7. The claude.ai Proj
 |---|---|
 | environment.md | Target device, constraints, network, tooling |
 | build-ci.md | Repo, workflow, dispatch, ABI config, release assets, run history |
-| crash-triage.md | Current crash (run 5 SIGSEGV) — facts and ruled-out causes |
+| crash-triage.md | Current crash (run 5 SIGSEGV) — facts, root-cause candidate, ruled-out causes |
 | delta-installer.md | Design of the single-range delta installer |
 | status.md | UNVERIFIED claims, open questions, next steps (ordered) |
 | decisions.md | Append-only decision log |

@@ -15,15 +15,24 @@
 
 ## SDK native library
 - CI builds libfilen_sdk_rs.so for armeabi-v7a from the filen-rs tag matching the installed npm version (`filen-js@<ver>`, currently 0.5.34), with features uniffi, heif-decoder, http-provider, cache, sync-engine, and copies it into the @filen/sdk-rs package jniLibs.
+- Built with `CARGO_PROFILE_RELEASE_DEBUG=line-tables-only`. The unstripped lib is published gzipped as release asset `libfilen_sdk_rs-armv7-unstripped.so.gz`, for symbolication only. The APK copy is stripped at packaging. The step logs both build ids.
+
+## ubrn RustBuffer patch
+- Step "Patch ubrn RustBuffer fields to uint64_t", right after `pnpm install`: rewrites `size_t capacity;` and `size_t len;` to `uint64_t` in every `node_modules/.pnpm/**/uniffi-bindgen-react-native/cpp/includes/RustBuffer.h`, the same change as upstream ubrn d3e421a.
+- Inserts `static_assert(sizeof(RustBuffer) == 24 && alignof(RustBuffer) == 8, ...)` after the struct, so the C++ build fails if the layout drifts from uniffi 0.29.
+- Fails the run early if the header is missing or the patch did not apply. Appends the header diff to armv7-android10.diff.
+- Drop this step once filen-ts pins a ubrn commit that contains d3e421a.
 
 ## ABI configuration (current, commit ac73f55 on main)
 - ANDROID_ABIS = ["armeabi-v7a"]; sdk-rs abiFilters "armeabi-v7a"; release notes say "armeabi-v7a only".
 - rustup target x86_64-linux-android still installed in the workflow (harmless, unused).
-- ac73f55 has NOT been built yet; its first build should also carry the crash fix or diagnostics.
+- First built in run 6, together with the RustBuffer patch.
 
 ## Upstream versions
 - @filen/sdk-rs@0.5.34 (npm), built from filen-rs tag filen-js@0.5.34.
-- Pins uniffi-bindgen-react-native github:Enduriel/uniffi-bindgen-react-native#e0282ad3eb972eaea74225dcc06247b7a67204dd.
+- Pins uniffi-bindgen-react-native github:Enduriel/uniffi-bindgen-react-native#e0282ad3eb972eaea74225dcc06247b7a67204dd (2025-11-06). It lacks upstream fix d3e421a, so CI patches it.
+- filen-rs filen-js@0.5.34 locks uniffi 0.29.4.
+- Run-5 upstream: filen-ts 7153fce (2026-11-23). As of 2026-11-24 filen-ts main (79bc8d5) still pins the same sdk-rs and ubrn versions.
 
 ## Run history
 | Run | Dispatched | Commit | Result |
