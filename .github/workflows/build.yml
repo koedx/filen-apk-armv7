@@ -2,8 +2,8 @@ name: build-filen-apk-armv7
 
 # Builds the Filen Android app (FilenCloudDienste/filen-ts, packages/filen-mobile) for 32-bit ARM
 # (armeabi-v7a) with minSdk lowered to 29 (Android 10), then publishes the APK as a GitHub Release.
-# Run: Actions tab, or `gh workflow run build.yml -R koedx/filen-apk-armv7`.
-# STATUS: UNVERIFIED -- no build has been run yet. Unofficial; AGPL-3.0 upstream.
+# Run (REST): gh api -X POST repos/koedx/filen-apk-armv7/actions/workflows/build.yml/dispatches -f ref=main
+# STATUS: builds succeed; on-device status is tracked in docs/status.md. Unofficial; AGPL-3.0 upstream.
 
 permissions:
   contents: write   # lets the job create releases
@@ -124,7 +124,36 @@ jobs:
         env:
           NODE_ENV: development
 
+      - name: Patch ubrn RustBuffer fields to uint64_t (32-bit ABI fix, upstream ubrn d3e421a)
+        working-directory: filen-ts
+        run: |
+          set -euxo pipefail
+          # The pinned ubrn (Enduriel fork e0282ad) declares RustBuffer capacity/len as size_t, which is
+          # 4 bytes on armv7, while uniffi 0.29 uses u64. Every RustBuffer crossing JS<->Rust is then
+          # mis-laid-out on 32-bit only. Upstream fixed this in d3e421a ("fix 32-bit ARM crash", #313/#344).
+          mapfile -t HDRS < <(find node_modules/.pnpm -path '*/uniffi-bindgen-react-native/cpp/includes/RustBuffer.h')
+          [ "${#HDRS[@]}" -ge 1 ] || { echo "::error::ubrn RustBuffer.h not found"; exit 1; }
+          for H in "${HDRS[@]}"; do
+            cp -v "$H" "$RUNNER_TEMP/RustBuffer.h.orig"
+            sed -i -E 's/^([[:space:]]*)size_t (capacity|len);/\1uint64_t \2;/' "$H"
+            # Compile-time guard: the C++ build fails if the layout ever drifts from uniffi's (u64, u64, ptr).
+            sed -i '/^struct RustBuffer {/,/^};/{/^};/a\
+          static_assert(sizeof(RustBuffer) == 24 \&\& alignof(RustBuffer) == 8, "RustBuffer must match uniffi 0.29 (u64, u64, ptr)");
+          }' "$H"
+            grep -n -A5 'struct RustBuffer {' "$H"
+            if grep -qE 'size_t (capacity|len);' "$H"; then echo "::error::patch did not apply to $H"; exit 1; fi
+            grep -q 'uint64_t capacity;' "$H"
+            grep -q 'uint64_t len;' "$H"
+            grep -q 'static_assert(sizeof(RustBuffer) == 24' "$H"
+            diff -u --label "a/$H" --label "b/$H" "$RUNNER_TEMP/RustBuffer.h.orig" "$H" >> "$RUNNER_TEMP/armv7-android10.diff" || true
+            rm -fv "$RUNNER_TEMP/RustBuffer.h.orig"
+          done
+
       - name: Build the SDK native library for armeabi-v7a (the npm package ships only arm64-v8a and x86_64)
+        env:
+          # Line tables only: lets crash pcs be symbolicated offline from the unstripped release asset.
+          # The APK copy is still stripped at packaging.
+          CARGO_PROFILE_RELEASE_DEBUG: line-tables-only
         run: |
           set -euxo pipefail
           # Source must match the published @filen/sdk-rs bindings, so build from its release tag, not the submodule pin.
@@ -138,6 +167,14 @@ jobs:
           rustup target add armv7-linux-androideabi
           cargo ndk -t armeabi-v7a -P 29 -o "$RUNNER_TEMP/sdk-jniLibs" build --release --locked -p filen-sdk-rs --features uniffi,heif-decoder,http-provider,cache,sync-engine
           ls -l "$RUNNER_TEMP/sdk-jniLibs/armeabi-v7a"
+          # Keep the unstripped lib (with line tables) as a release asset for offline symbolication.
+          UNSTRIPPED="target/armv7-linux-androideabi/release/libfilen_sdk_rs.so"
+          ls -l "$UNSTRIPPED"
+          file "$UNSTRIPPED" "$RUNNER_TEMP/sdk-jniLibs/armeabi-v7a/libfilen_sdk_rs.so"
+          readelf -n "$UNSTRIPPED" | grep -i 'build id' || echo "::warning::no build id note"
+          readelf -n "$RUNNER_TEMP/sdk-jniLibs/armeabi-v7a/libfilen_sdk_rs.so" | grep -i 'build id' || echo "::warning::no build id note"
+          gzip -9 -c "$UNSTRIPPED" > "$RUNNER_TEMP/libfilen_sdk_rs-armv7-unstripped.so.gz"
+          ls -l "$RUNNER_TEMP/libfilen_sdk_rs-armv7-unstripped.so.gz"
           PKG="$PKG0"
           mkdir -p "$PKG/android/src/main/jniLibs/armeabi-v7a"
           cp -v "$RUNNER_TEMP/sdk-jniLibs/armeabi-v7a/libfilen_sdk_rs.so" "$PKG/android/src/main/jniLibs/armeabi-v7a/"
@@ -195,6 +232,7 @@ jobs:
           APK=$(ls filen-ts/packages/filen-mobile/android/app/build/outputs/apk/release/*.apk | head -n1)
           cp -v "$APK" "$RUNNER_TEMP/Filen-armv7.apk"
           gh release create "$TAG" "$RUNNER_TEMP/Filen-armv7.apk" "$RUNNER_TEMP/armv7-android10.diff" \
+            "$RUNNER_TEMP/libfilen_sdk_rs-armv7-unstripped.so.gz" \
             --repo "${{ github.repository }}" \
             --title "Filen APK armv7 (filen-ts ${UPSTREAM})" \
-            --notes "Unofficial build of FilenCloudDienste/filen-ts @ ${UPSTREAM}: armeabi-v7a only, minSdk ${{ inputs.min_sdk }}. Debug-signed. Patch in armv7-android10.diff. Source: https://github.com/FilenCloudDienste/filen-ts (AGPL-3.0)."
+            --notes "Unofficial build of FilenCloudDienste/filen-ts @ ${UPSTREAM}: armeabi-v7a only, minSdk ${{ inputs.min_sdk }}. Debug-signed. Includes the ubrn RustBuffer uint64_t fix (upstream ubrn d3e421a). Patch in armv7-android10.diff. libfilen_sdk_rs-armv7-unstripped.so.gz is for crash symbolication only; you don't need it to install. Source: https://github.com/FilenCloudDienste/filen-ts (AGPL-3.0)."
