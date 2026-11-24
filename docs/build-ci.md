@@ -42,6 +42,7 @@
 | 3 | 2026-11-19T11:16Z | 38d206c | success — crashes on device (UnsatisfiedLinkError) |
 | 4 | 2026-11-23T06:48Z | 32a68da | failure (sdk-rs package path lookup) |
 | 5 | 2026-11-23T07:17Z | e59aceb | success — installed; SIGSEGV ~5 s after launch |
+| 6 | 2026-11-24T07:17Z | c077b57 (filen-ts 7153fce) | in progress — RustBuffer patch + armv7-only + unstripped lib; run id 45346897158 |
 
 ## Release assets
 | Run | Tag | Asset | Bytes | sha256 |

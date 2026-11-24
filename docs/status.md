@@ -1,4 +1,4 @@
-# Status — 2026-11-24T07:20Z
+# Status — 2026-11-24T07:25Z
 
 ## UNVERIFIED claims
 - The ubrn RustBuffer size_t/u64 mismatch on armv7 causes the run-5 SIGSEGV (crash-triage.md). The mismatch itself is verified; the causal link is not.
@@ -14,7 +14,7 @@
 - 32-bit pointer-width assumption: yes, in ubrn's C++ RustBuffer (size_t). Not in uniffi's handle encoding.
 
 ## Next steps (ordered)
-1. Commit the workflow fix and dispatch run 6 on main (ac73f55 ABI change + RustBuffer patch + unstripped lib). — Sonnet
-2. While run 6 builds (~2 h): write the delta installer (delta-installer.md). — Sonnet
+1. Run 6 dispatched 2026-11-24T07:17Z (run id 45346897158; main c077b57, filen-ts 7153fce). Wait for it (~2 h).
+2. While it builds (~2 h): write the delta installer (delta-installer.md). — Sonnet
 3. Verify run-6 assets (size, sha256), install, launch, capture logs: find package, logcat -c, `monkey -p io.filen.app -c android.intent.category.LAUNCHER 1`, wait ~10 s, grep log. Confirm APK ABIs. — Sonnet
 4. If it still crashes: download libfilen_sdk_rs-armv7-unstripped.so.gz (to the Claude workspace, not the tablet) and symbolicate the tombstone pcs. — Opus
