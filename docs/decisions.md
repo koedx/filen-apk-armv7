@@ -96,3 +96,8 @@ Supersedes: the earlier convention of framing device commands as rish invocation
 What: adb is the only channel for device shell commands and for the installer's seed reads and install. rish is not offered as a fallback; the shared-storage staging path (which used rish) is dropped as a fallback too. If adb is unavailable the installer downloads the full APK.
 Why: Per the user, Shizuku and loopback adb need the identical bootstrap, so a failure that takes one down takes both down; a rish fallback adds no resilience.
 Supersedes: the "rish is kept only as a fallback" clause of the 2026-11-25T10:03Z entry, and the "staging remains a verified fallback" clause of the 2026-11-25T09:57Z entry.
+
+## 2026-11-25T10:50Z — Installer shows visible download progress
+What: filen_delta.py draws a progress bar (percent, MB done/total, speed, ETA) during assembly and full download; on a terminal it redraws in place, otherwise it prints one line per 10%.
+Why: Standing user preference: any download shows visible progress (speed, ETA, bar), never a silent fetch. The installer previously logged only per-segment lines.
+Supersedes: the progress-less assembly and download output of the 2026-11-25T06:48Z installer. Does not supersede any decision.

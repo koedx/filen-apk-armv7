@@ -22,7 +22,7 @@ Code: `tools/delta/filen_delta.py` (stdlib-only Python glue) and `tools/delta/fi
 8. Any failure reading the seed (adb missing, no or several devices, short read) discards the work and falls back to the full download; a failed delta never installs.
 
 ## Constraints
-- Never deletes cached APKs; asks before installing; verbose output; no temp files other than `.part` and the sidecar.
+- Never deletes cached APKs; asks before installing; verbose output; downloads and assembly show a progress bar with percent, MB done/total, speed and ETA (redrawn in place on a terminal, one line per 10% otherwise); no temp files other than `.part` and the sidecar.
 - No GitHub token is used; the repo's release assets must be publicly downloadable.
 
 ## Verified (local test only)

@@ -23,6 +23,40 @@ def log(msg=""):
     print(msg, file=sys.stderr, flush=True)
 
 
+class Progress:
+    """Visible progress: bar, percent, bytes, speed, ETA. \\r-redraw on a terminal, a line per 10% otherwise."""
+    def __init__(self, total, label, start=0):
+        self.total, self.label, self.done, self.base = total, label, start, start
+        self.t0 = self.last = time.monotonic()
+        self.tty, self.step = sys.stderr.isatty(), -1
+
+    def add(self, n):
+        self.done += n
+        now = time.monotonic()
+        if now - self.last >= 0.5 or self.done >= self.total:
+            self.last = now
+            self._show(now)
+
+    def _show(self, now):
+        pct = 100.0 * self.done / self.total if self.total else 100.0
+        el = max(now - self.t0, 1e-6)
+        rate = (self.done - self.base) / el
+        eta = (self.total - self.done) / rate if rate > 0 else 0
+        line = (f"  {self.label} [{'#' * int(pct // 5):<20}] {pct:5.1f}%  "
+                f"{self.done / 1e6:.1f}/{self.total / 1e6:.1f} MB  {rate / 1e6:.2f} MB/s  ETA {int(eta // 60)}m{int(eta % 60):02d}s")
+        if self.tty:
+            sys.stderr.write("\r" + line + "\x1b[K")
+            sys.stderr.flush()
+        elif int(pct // 10) != self.step:
+            self.step = int(pct // 10)
+            log(line)
+
+    def finish(self):
+        if self.tty:
+            sys.stderr.write("\n")
+            sys.stderr.flush()
+
+
 def banner(n, total, title):
     log(f"\n===== [{n}/{total}] {title} =====")
 
@@ -380,15 +414,20 @@ def main():
         h = hashlib.sha256()
         try:
             with open(part, "wb") as out:
+                prog = Progress(size, "assembling")
                 def sink(b):
                     out.write(b)
                     h.update(b)
+                    prog.add(len(b))
                 for k, s, e, c in segs:
-                    log(f"  {k:5s} {s}-{e} ({mb(e - s)})" + (f" <- seed@{c}" if k == "copy" else ""))
+                    if k == "fetch" or e - s >= (4 << 20):
+                        prog.finish()
+                        log(f"  {k:5s} {s}-{e} ({mb(e - s)})" + (f" <- seed@{c}" if k == "copy" else ""))
                     if k == "copy":
                         seed.stream(c, c + (e - s), sink)
                     else:
                         remote.stream(s, e, sink)
+                prog.finish()
             used_delta = h.hexdigest() == sha and os.path.getsize(part) == size
             if not used_delta:
                 log("  ! delta result failed sha256/size; discarding assembled file and falling back")
@@ -399,8 +438,13 @@ def main():
     if not used_delta:
         have = os.path.getsize(part) if os.path.exists(part) else 0
         log(f"  downloading from byte {have}")
+        prog = Progress(size, "downloading", have)
         with open(part, "ab") as out:
-            remote.stream(have, size, out.write)
+            def wr(b):
+                out.write(b)
+                prog.add(len(b))
+            remote.stream(have, size, wr)
+        prog.finish()
 
     # ---- 6. verify + publish
     banner(6, 6, "Verify")
