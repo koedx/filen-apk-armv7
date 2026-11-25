@@ -91,3 +91,8 @@ Supersedes: rish as the seed-read and install transport (delta-installer.md step
 What: Commands for the tablet that need shell-level access are framed as `adb` invocations (`adb shell ...`, `adb exec-out ...`, `adb install`), using `-s <serial>` or ANDROID_SERIAL when more than one device is listed. rish is kept only as a fallback when adb is not connected.
 Why: Tablet benchmark on 2026-11-25: about 110 ms per call for adb against about 1,000 ms for rish, and adb passed every bulk-transfer test that rish failed. The user asked to switch if adb dominated.
 Supersedes: the earlier convention of framing device commands as rish invocations.
+
+## 2026-11-25T10:08Z — rish is not a fallback for adb
+What: adb is the only channel for device shell commands and for the installer's seed reads and install. rish is not offered as a fallback; the shared-storage staging path (which used rish) is dropped as a fallback too. If adb is unavailable the installer downloads the full APK.
+Why: Per the user, Shizuku and loopback adb need the identical bootstrap, so a failure that takes one down takes both down; a rish fallback adds no resilience.
+Supersedes: the "rish is kept only as a fallback" clause of the 2026-11-25T10:03Z entry, and the "staging remains a verified fallback" clause of the 2026-11-25T09:57Z entry.

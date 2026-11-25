@@ -1,4 +1,4 @@
-# Status — 2026-11-25T10:03Z
+# Status — 2026-11-25T10:08Z
 
 ## UNVERIFIED claims
 - The ubrn RustBuffer size_t/u64 mismatch on armv7 causes the run-5 SIGSEGV (crash-triage.md). The mismatch itself is verified; the causal link is not.
@@ -35,7 +35,7 @@
 
 ## Next steps (ordered)
 1. DONE: run 6 (id 45346897158) succeeded at 2026-11-24T08:36Z; assets in build-ci.md.
-2. DONE: installer switched from rish to adb (seed reads and install). Fallback if adb ever fails: stage the seed through /sdcard/Download (verified at 20 MB; not implemented).
+2. DONE: installer switched from rish to adb (seed reads and install). If adb is unavailable the installer falls back to a full download (no seed); rish cannot substitute because it shares adb's bootstrap.
 3. On the tablet: pull, `filen_delta apk-7153fce-run6 --dry-run` (reports the reuse fraction), then the real run. — Sonnet
 4. After install: launch and capture logs: logcat -c, `monkey -p io.filen.app -c android.intent.category.LAUNCHER 1`, wait ~10 s, grep log. Confirm APK ABIs and primaryCpuAbi. — Sonnet
 5. If it still crashes: download libfilen_sdk_rs-armv7-unstripped.so.gz (to the Claude workspace, not the tablet) and symbolicate the tombstone pcs. — Opus
