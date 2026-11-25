@@ -66,3 +66,8 @@ Supersedes: "Do not dispatch ac73f55 alone" (2026-11-24T06:23Z), whose condition
 What: filen_delta.py builds the release APK from the installed base.apk plus single-range fetches, verifies sha256 against the release digest, and falls back to a full resumable download; filen_delta.fish prompts, then streams the install through rish. A verified APK cached on disk skips the network entirely.
 Why: Implements the 2026-11-24T06:01Z delta-installer decision. Stdlib-only Python keeps the tablet install to two files; the offline-first cache path honours the intermittent-internet constraint; the final sha256 check plus automatic full-download fallback makes unverified assumptions about local-header byte equality safe.
 Supersedes: "design (not yet written)" state of delta-installer.md. Does not supersede any earlier decision.
+
+## 2026-11-25T07:09Z — Tablet layout mirrors the repo; APK cache outside the working tree
+What: The tablet holds a clone at ~/dev/filen-apk-armv7 (installer at tools/delta/, spec in docs/, updated with git pull --ff-only). Cached APKs live in ~/dev/filen-apks, outside the clone.
+Why: One clone gives the installer and the spec and stays current by pulling. Keeping expensive-to-reacquire APKs out of the working tree means a pull, checkout or git clean cannot delete them.
+Supersedes: the install location ~/dev/filen-delta (apks in ~/dev/filen-delta/apks) stated in delta-installer.md at spec 4.
