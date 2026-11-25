@@ -1,10 +1,10 @@
-# Delta installer — design (written, untested on device)
+# Delta installer — design (written; seed transport under revision, see status.md)
 
 Code: `tools/delta/filen_delta.py` (stdlib-only Python glue) and `tools/delta/filen_delta.fish` (wrapper function `filen_delta`). On the tablet: clone the repo to ~/dev/filen/filen-apk-armv7 and `git pull --ff-only` to update; source tools/delta/filen_delta.fish. Verified APKs are cached outside the working tree in ~/dev/filen/apks (override: FILEN_DELTA_APKS; script dir override: FILEN_DELTA_HOME).
 
 ## Facts it relies on
 - Release CDN: single-range requests work (206); multi-range returns 501.
-- rish streams binary cleanly; install via stdin with explicit size.
+- rish bulk stdout is unreliable (environment.md), so the current seed reads via `tail|head` over rish do not work on the tablet; seed bytes must be staged through shared storage. Install via stdin with explicit size is UNVERIFIED for large APKs.
 - Run 3 → run 5: 158.4 MB byte-identical (per-entry CRC), 110.2 MB changed in 9 contiguous runs, plus zip index and signing block ≈ 12 range requests. x86_64 libs were unchanged (no delta cost); dropping them saves ~73 MB of APK/flash only.
 
 ## Usage
