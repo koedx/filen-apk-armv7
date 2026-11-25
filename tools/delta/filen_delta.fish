@@ -1,4 +1,5 @@
-# filen_delta.fish - delta-install a Filen armv7 release APK (see spec/delta-installer.md)
+# filen_delta.fish - delta-install a Filen armv7 release APK (see docs/delta-installer.md)
+# Needs: python3, adb (pkg install android-tools) connected to the tablet itself (adb connect localhost:5555).
 # Usage: filen_delta TAG [--dry-run] [--no-install] [--full]
 # Layout: clone koedx/filen-apk-armv7 to ~/dev/filen/filen-apk-armv7; filen_delta.py lives next to this file in tools/delta.
 # Override the script dir with FILEN_DELTA_HOME. APKs are cached OUTSIDE the repo in ~/dev/filen/apks
@@ -28,6 +29,11 @@ function filen_delta --description 'Delta-install a Filen armv7 release APK'
     set -q _flag_dry_run; and set -a pyargs --dry-run
     set -q _flag_full; and set -a pyargs --full
 
+    # adb device: prefer ...:5555, else the sole online device (the loopback adbd often shows as emulator-5554)
+    set -l serial (adb devices 2>/dev/null | string match -r -g '^(\S+:5555)\s+device' | head -n1)
+    test -z "$serial"; and set serial (adb devices 2>/dev/null | string match -r -g '^(\S+)\s+device\b' | head -n1)
+    test -n "$serial"; and set -a pyargs --serial $serial
+
     # Python logs to stderr (shown live); stdout is only the final APK path.
     set -l apk (python3 -I $home/filen_delta.py $tag --dir $apkdir $pyargs)
     set -l rc $status
@@ -45,24 +51,31 @@ function filen_delta --description 'Delta-install a Filen armv7 release APK'
     end
 
     set -l bytes (stat -c %s $apk)
+    # re-detect: the python step may have run `adb connect`
+    set serial (adb devices 2>/dev/null | string match -r -g '^(\S+:5555)\s+device' | head -n1)
+    test -z "$serial"; and set serial (adb devices 2>/dev/null | string match -r -g '^(\S+)\s+device\b' | head -n1)
     echo
     set_color --bold; echo "===== install ====="; set_color normal
-    set_color red; echo "Install $apk ($bytes bytes) over $pkg with pm install -r?"; set_color normal
+    if test -z "$serial"
+        set_color red; echo "no online adb device; APK kept at $apk (run: adb connect localhost:5555)"; set_color normal
+        return 1
+    end
+    set_color red; echo "Install $apk ($bytes bytes) over $pkg with adb -s $serial install -r?"; set_color normal
     read -P "[y/N] " -l ans
     if not string match -qi y $ans
         echo "skipped; APK kept at $apk"
         return 0
     end
 
-    echo "streaming: cat $apk | rish -c 'pm install -r -S $bytes'"
-    cat $apk | rish -c "pm install -r -S $bytes"
-    set -l irc $pipestatus[2]
+    echo "running: adb -s $serial install -r $apk"
+    adb -s $serial install -r $apk
+    set -l irc $status
     if test $irc -ne 0
-        set_color red; echo "pm install failed (exit $irc); APK kept at $apk"; set_color normal
+        set_color red; echo "adb install failed (exit $irc); APK kept at $apk"; set_color normal
         return $irc
     end
 
     echo
     set_color --bold; echo "===== installed package ====="; set_color normal
-    rish -c "pm path $pkg; dumpsys package $pkg | grep -E 'versionName|primaryCpuAbi|lastUpdateTime'"
+    adb -s $serial shell "pm path $pkg; dumpsys package $pkg | grep -E 'versionName|primaryCpuAbi|lastUpdateTime'"
 end

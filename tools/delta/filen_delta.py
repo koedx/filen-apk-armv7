@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """filen_delta.py - build a release APK from the installed APK plus single-range fetches.
 
+The installed APK (the "seed") is read through adb exec-out (raw, binary-safe). rish was rejected for
+bulk data: its stdout loses bytes (see docs/environment.md).
+
 Logs go to stderr (verbose, with section banners). The only stdout output is the
 final verified APK path, so the fish wrapper can capture it.
 Exit codes: 0 ok, 2 preflight/usage, 3 network, 4 verification failed.
@@ -28,6 +31,10 @@ class Fail(Exception):
     def __init__(self, msg, code=3):
         super().__init__(msg)
         self.code = code
+
+
+class SeedFail(Fail):
+    """Problem reading the installed APK (adb); recoverable by a full download."""
 
 
 # ---------------------------------------------------------------- HTTP
@@ -113,50 +120,77 @@ class Remote:
         return bytes(buf)
 
 
-# ---------------------------------------------------------------- rish seed
+# ---------------------------------------------------------------- adb seed
 
-def rish_text(rish, cmd):
-    """Run a text-producing command via rish; return (rc, text).
-    Observed on the tablet: `pm path` output arrives on stderr with stdout empty, so
-    fall back to stderr when stdout has nothing."""
-    try:
-        p = subprocess.run([rish, "-c", cmd], capture_output=True)
-    except OSError as e:
-        raise Fail(f"cannot execute rish ('{rish}'): {e}. If rish is a fish function/alias, "
-                   f"python cannot call it; pass --rish /path/to/rish")
-    out = p.stdout.decode(errors="replace").strip()
-    err = p.stderr.decode(errors="replace").strip()
-    log(f"  rish exit={p.returncode} stdout={out[:120]!r} stderr={err[:200]!r}")
-    if p.returncode != 0:
-        raise Fail(f"rish failed (exit {p.returncode}) running `{cmd}`: {err or out or 'no output'}. "
-                   f"Check RISH_APPLICATION_ID is exported (set -gx) in this shell")
-    return p.returncode, (out or err)
+class Adb:
+    """Thin adb client wrapper. Bulk data goes through `exec-out`; text answers through `shell`."""
+
+    def __init__(self, serial=None):
+        self.exe = shutil.which("adb")
+        if not self.exe:
+            raise SeedFail("adb not found in PATH (pkg install android-tools)")
+        self.serial = serial or self._pick()
+        log(f"  adb device: {self.serial}")
+
+    def _devices(self):
+        p = subprocess.run([self.exe, "devices"], capture_output=True)
+        found = []
+        for line in p.stdout.decode(errors="replace").splitlines():
+            parts = line.split()
+            if len(parts) >= 2 and parts[1] == "device":
+                found.append(parts[0])
+        return found
+
+    def _pick(self):
+        devs = self._devices()
+        if not devs:
+            log("  no online adb device; trying: adb connect localhost:5555")
+            subprocess.run([self.exe, "connect", "localhost:5555"], capture_output=True)
+            devs = self._devices()
+        log(f"  adb devices online: {devs}")
+        if not devs:
+            raise SeedFail("no online adb device (try: adb connect localhost:5555)")
+        pref = [d for d in devs if d.endswith(":5555")]
+        if pref:
+            return pref[0]
+        if len(devs) == 1:
+            return devs[0]   # the loopback adbd often shows up as emulator-5554
+        raise SeedFail(f"several adb devices online {devs}; pass --serial")
+
+    def base(self):
+        return [self.exe, "-s", self.serial]
+
+    def text(self, cmd):
+        p = subprocess.run(self.base() + ["shell", cmd], capture_output=True)
+        out = p.stdout.decode(errors="replace").strip()
+        err = p.stderr.decode(errors="replace").strip()
+        log(f"  adb shell exit={p.returncode} stdout={out[:120]!r} stderr={err[:200]!r}")
+        if p.returncode != 0:
+            raise SeedFail(f"adb shell failed (exit {p.returncode}) running `{cmd}`: {err or out or 'no output'}")
+        return out
 
 
 class Seed:
-    def __init__(self, path, rish):
-        self.path, self.rish = path, rish
-        _, txt = rish_text(rish, f"stat -c %s '{path}'")
+    def __init__(self, path, adb):
+        self.path, self.adb = path, adb
+        txt = adb.text(f"stat -c %s '{path}'")
         try:
             self.size = int(txt.split()[0])
         except (ValueError, IndexError):
-            raise Fail(f"could not read size of {path} via rish stat; got {txt!r}")
+            raise SeedFail(f"could not read size of {path} via adb stat; got {txt!r}")
 
-    def _run(self, cmd):
-        p = subprocess.run([self.rish, "-c", cmd], capture_output=True)
-        if p.returncode != 0:
-            raise Fail(f"rish failed ({cmd}): {p.stderr.decode(errors='replace').strip()}")
-        return p.stdout
+    def _cmd(self, start, n):
+        return f"tail -c +{start + 1} '{self.path}' | head -c {n}"
 
     def read(self, start, n):
-        data = self._run(f"tail -c +{start + 1} '{self.path}' | head -c {n}")
-        if len(data) != n:
-            raise Fail(f"seed read short: wanted {n}, got {len(data)} at {start}")
-        return data
+        p = subprocess.run(self.adb.base() + ["exec-out", self._cmd(start, n)], capture_output=True)
+        if p.returncode != 0 or len(p.stdout) != n:
+            raise SeedFail(f"seed read wrong: wanted {n}, got {len(p.stdout)} at {start}, rc {p.returncode}")
+        return p.stdout
 
     def stream(self, start, end, sink):
-        cmd = f"tail -c +{start + 1} '{self.path}' | head -c {end - start}"
-        p = subprocess.Popen([self.rish, "-c", cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p = subprocess.Popen(self.adb.base() + ["exec-out", self._cmd(start, end - start)],
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         got = 0
         while True:
             b = p.stdout.read(CHUNK)
@@ -167,7 +201,7 @@ class Seed:
         p.wait()
         if got != end - start or p.returncode != 0:
             err = p.stderr.read(300).decode(errors="replace").strip()
-            raise Fail(f"seed stream wrong: wanted {end - start}, got {got}, rc {p.returncode}; stderr={err!r}")
+            raise SeedFail(f"seed stream wrong: wanted {end - start}, got {got}, rc {p.returncode}; stderr={err!r}")
 
 
 # ---------------------------------------------------------------- zip parsing
@@ -237,11 +271,9 @@ def plan(new, seed, new_size, new_region_end):
 
 # ---------------------------------------------------------------- main flow
 
-def find_seed(rish):
+def find_seed(adb):
     """Return the installed base.apk path, or None if the package is not installed."""
-    cmd = f"pm path {PKG}"
-    log(f"  running: {rish} -c '{cmd}'")
-    _, out = rish_text(rish, cmd)
+    out = adb.text(f"pm path {PKG}")
     lines = [l.strip()[8:] for l in out.splitlines() if l.strip().startswith("package:")]
     base = [l for l in lines if l.endswith("/base.apk")] or lines
     return base[0] if base else None
@@ -265,9 +297,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("tag")
     ap.add_argument("--dir", required=True)
-    ap.add_argument("--rish", default=shutil.which("rish") or "rish")
-    ap.add_argument("--api", default="https://api.github.com")
-    ap.add_argument("--dl", default="https://github.com")
+    ap.add_argument("--serial", help="adb serial (default: ...:5555, else the only online device)")
+    ap.add_argument("--api", default=os.environ.get("FILEN_DELTA_API", "https://api.github.com"))
+    ap.add_argument("--dl", default=os.environ.get("FILEN_DELTA_DL", "https://github.com"))
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--full", action="store_true", help="skip delta, full resumable download")
     a = ap.parse_args()
@@ -316,10 +348,11 @@ def main():
     if not a.full:
         banner(4, 6, "Delta plan (installed APK as seed)")
         try:
-            sp = find_seed(a.rish)
+            adb = Adb(a.serial)
+            sp = find_seed(adb)
             if not sp:
-                raise Fail(f"rish ran fine but `pm path {PKG}` returned no package; using full download")
-            seed = Seed(sp, a.rish)
+                raise Fail(f"`pm path {PKG}` returned no package; using full download")
+            seed = Seed(sp, adb)
             log(f"  seed: {sp} ({mb(seed.size)})")
             sents, _, _ = parse_zip(seed, seed.size)
             nents, _, new_end = parse_zip(remote, size)
@@ -345,21 +378,24 @@ def main():
     banner(5, 6, "Assemble delta" if segs else "Full resumable download")
     if segs:
         h = hashlib.sha256()
-        with open(part, "wb") as out:
-            def sink(b):
-                out.write(b)
-                h.update(b)
-            for k, s, e, c in segs:
-                log(f"  {k:5s} {s}-{e} ({mb(e - s)})" + (f" <- seed@{c}" if k == "copy" else ""))
-                if k == "copy":
-                    seed.stream(c, c + (e - s), sink)
-                else:
-                    remote.stream(s, e, sink)
-        used_delta = h.hexdigest() == sha and os.path.getsize(part) == size
-        if not used_delta:
-            log("  ! delta result failed sha256/size; discarding assembled file and falling back")
+        try:
+            with open(part, "wb") as out:
+                def sink(b):
+                    out.write(b)
+                    h.update(b)
+                for k, s, e, c in segs:
+                    log(f"  {k:5s} {s}-{e} ({mb(e - s)})" + (f" <- seed@{c}" if k == "copy" else ""))
+                    if k == "copy":
+                        seed.stream(c, c + (e - s), sink)
+                    else:
+                        remote.stream(s, e, sink)
+            used_delta = h.hexdigest() == sha and os.path.getsize(part) == size
+            if not used_delta:
+                log("  ! delta result failed sha256/size; discarding assembled file and falling back")
+        except SeedFail as e:
+            log(f"  ! reading the installed APK failed ({e}); discarding and falling back")
+        if not used_delta and os.path.exists(part):
             os.remove(part)
-            have = 0
     if not used_delta:
         have = os.path.getsize(part) if os.path.exists(part) else 0
         log(f"  downloading from byte {have}")

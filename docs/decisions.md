@@ -81,3 +81,8 @@ Supersedes: the paths ~/dev/filen-apk-armv7 and ~/dev/filen-apks from the 2026-1
 What: filen_delta.py parses text answers (pm path, stat) from rish stdout and falls back to stderr when stdout is empty; non-zero rish exit codes and stderr are always reported.
 Why: On the tablet, `pm path io.filen.app` returned exit 0 with the answer on stderr and stdout empty, so the stdout-only parser wrongly reported the package as not installed.
 Supersedes: the implicit assumption that rish text output arrives on stdout (delta-installer.md design step 4).
+
+## 2026-11-25T09:57Z — Use adb exec-out instead of rish for seed reads and install
+What: filen_delta.py reads the installed base.apk with `adb -s <serial> exec-out "tail|head"` and filen_delta.fish installs with `adb -s <serial> install -r`. The serial is a `...:5555` entry if listed, else the only online device (emulator-5554 on the tablet). Any seed-reading failure falls back to the full download. Staging the seed through /sdcard/Download remains a verified, unimplemented fallback.
+Why: Tablet tests on 2026-11-25 showed rish bulk stdout loses bytes and splits data across stdout and stderr (all four variants failed), while adb exec-out matched hashes for three 20 MB slices and the whole 269 MB seed in 9 s. adb is already installed and shares Shizuku's bootstrap, so it adds no setup, no temp copy and no extra disk.
+Supersedes: rish as the seed-read and install transport (delta-installer.md steps 4 and 7 as of spec 8), and the 2026-11-24T06:01Z entry's assumption that rish streams binary cleanly both ways.
