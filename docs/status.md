@@ -1,18 +1,18 @@
-# Status — 2026-11-25T10:08Z
+# Status — 2026-11-25T22:54Z
 
 ## UNVERIFIED claims
 - The ubrn RustBuffer size_t/u64 mismatch on armv7 causes the run-5 SIGSEGV (crash-triage.md). The mismatch itself is verified; the causal link is not.
 - The mechanism by which a null future handle reaches rust_future_free_pointer (crash-triage.md).
-- Delta installer: the real release redirect (github.com → signed CDN URL) honours a single Range on the resolved URL and gives a matching Content-Range (single ranges were seen to work earlier; this exact code path ran only against a mock server).
-- Delta installer: seed entries with matching CRC/sizes have byte-identical local-header regions in the new APK (guarded by the final sha256 and automatic full-download fallback; the reuse fraction is unknown until a real dry run).
-- `adb -s <serial> install -r` of run 6 over run 5 succeeds (same signing key and versionCode assumed; not tried).
-- The adb-based installer has run only in a sandbox with a fake adb; its first run on the tablet may expose differences (for example how `adb shell` reports exit codes). The mid-assembly seed-failure fallback was not exercised (only plan-stage failures).
+- Installer paths not yet exercised on the tablet: the mid-assembly seed-failure fallback, the full-download fallback, and the progress bar (the 2026-11-25T10:47Z run predates it; the in-place redraw on a terminal is untested).
 - The loopback adb connection survives until reboot or until adb over TCP is restarted; after that the installer tries `adb connect localhost:5555` once and otherwise falls back to a full download.
 
 ## Open questions
 - Does run 6 (RustBuffer fix) launch past the ~5 s crash point?
 - If not: what do the run-6 crash pcs symbolicate to with the unstripped lib?
-- What fraction of run 6 can be reused from the installed run-5 APK? (`filen_delta apk-7153fce-run6 --dry-run` reports it.)
+
+## Answered (2026-11-25 first real installer run, 10:47Z)
+- The delta rebuild of run 6 from the installed run-5 base.apk matched the release sha256 (so seed entries with matching CRC/sizes do have byte-identical regions) and used the real release redirect with single Range requests: 77.9 MB copied from the seed, 76.4 MB fetched, 76.5 MB over the network in 9 requests (about half of 154.3 MB).
+- `adb -s emulator-5554 install -r` of run 6 over run 5 succeeded (`Success`); the package then reports primaryCpuAbi=armeabi-v7a, versionName 4.0.19.
 
 ## Answered (2026-11-25 latency benchmark, 10:03Z)
 - adb per-call round trip ≈ 110 ms vs rish ≈ 1,000 ms on the tablet; adb is the default channel for device commands (decisions.md).
@@ -36,6 +36,6 @@
 ## Next steps (ordered)
 1. DONE: run 6 (id 45346897158) succeeded at 2026-11-24T08:36Z; assets in build-ci.md.
 2. DONE: installer switched from rish to adb (seed reads and install). If adb is unavailable the installer falls back to a full download (no seed); rish cannot substitute because it shares adb's bootstrap.
-3. On the tablet: pull, `filen_delta apk-7153fce-run6 --dry-run` (reports the reuse fraction), then the real run. — Sonnet
-4. After install: launch and capture logs: logcat -c, `monkey -p io.filen.app -c android.intent.category.LAUNCHER 1`, wait ~10 s, grep log. Confirm APK ABIs and primaryCpuAbi. — Sonnet
+3. DONE: run 6 delta-installed on the tablet (2026-11-25T10:47Z).
+4. Launch and capture logs: logcat -c, `monkey -p io.filen.app -c android.intent.category.LAUNCHER 1`, wait ~10 s, grep log. Confirm APK ABIs and primaryCpuAbi. — Sonnet
 5. If it still crashes: download libfilen_sdk_rs-armv7-unstripped.so.gz (to the Claude workspace, not the tablet) and symbolicate the tombstone pcs. — Opus

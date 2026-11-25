@@ -13,7 +13,7 @@
 - rish text answers (`pm path`, `stat`) arrive on stdout or stderr, varying between calls; read both.
 - Staging through shared storage (rish `dd ... of=/sdcard/Download/<file>`, Termux reads ~/storage/downloads) was verified (20 MB, hash match, 5 s) but is not a fallback for adb outages, since it also needs the shared bootstrap.
 - /data/tombstones is not readable via rish (Permission denied).
-- Installing an APK from /sdcard fails (system_server SELinux denial). Install with adb's streamed install: `adb -s <serial> install -r <apk>` (UNVERIFIED on this tablet). The earlier `cat apk | rish -c "pm install -r -S <bytes>"` is not used for large APKs because rish bulk data is unreliable.
+- Installing an APK from /sdcard fails (system_server SELinux denial). Install with adb's streamed install: `adb -s <serial> install -r <apk>` (verified on this tablet, 2026-11-25T10:47Z: streamed install of 154 MB, Success). The earlier `cat apk | rish -c "pm install -r -S <bytes>"` is not used for large APKs because rish bulk data is unreliable.
 
 ## Network
 - Throttled Bluetooth-PAN; internet not always available. Scripts must have an offline path and go online only for the step that needs it.

@@ -1,4 +1,4 @@
-# Delta installer — design (written; adb transport, untested on the real device)
+# Delta installer — design (adb transport; first real run succeeded 2026-11-25T10:47Z)
 
 Code: `tools/delta/filen_delta.py` (stdlib-only Python glue) and `tools/delta/filen_delta.fish` (wrapper function `filen_delta`). On the tablet: clone the repo to ~/dev/filen/filen-apk-armv7 and `git pull --ff-only` to update; source tools/delta/filen_delta.fish. Needs python3 and adb (android-tools) connected to the tablet itself. Verified APKs are cached outside the working tree in ~/dev/filen/apks (override: FILEN_DELTA_APKS; script dir override: FILEN_DELTA_HOME).
 
@@ -24,6 +24,9 @@ Code: `tools/delta/filen_delta.py` (stdlib-only Python glue) and `tools/delta/fi
 ## Constraints
 - Never deletes cached APKs; asks before installing; verbose output; downloads and assembly show a progress bar with percent, MB done/total, speed and ETA (redrawn in place on a terminal, one line per 10% otherwise); no temp files other than `.part` and the sidecar.
 - No GitHub token is used; the repo's release assets must be publicly downloadable.
+
+## Verified on the tablet
+Run 6 (2026-11-25T10:47Z): delta rebuild from the installed run-5 base.apk, 77.9 MB copied and 76.5 MB fetched in 9 requests, sha256 matched the release digest, `adb install -r` Success, primaryCpuAbi=armeabi-v7a. The progress bar, the mid-assembly seed-failure fallback and the full-download fallback have not run on the tablet.
 
 ## Verified (local test only)
 Synthetic APKs with an APK Sig Block, a Range-capable mock server and a fake adb (only emulator-5554; :5555 plus alias; ambiguous devices; truncated exec-out; adb missing; device appearing after `adb connect`; fish end-to-end with install): delta rebuild byte-identical (3.0 of 8.3 MB fetched, 7 requests); offline cache path with the server down; corrupt seed falls back to full download and verifies; bad digest exits 4; dry run; missing seed falls back. See status.md for what is still UNVERIFIED on the real device and CDN.
