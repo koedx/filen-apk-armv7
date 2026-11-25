@@ -61,3 +61,8 @@ Supersedes: the planned CARGO_PROFILE_RELEASE_DEBUG=1 diagnostic run (status.md 
 What: Dispatch main (bdfb115 plus docs) with input ref=7153fce23f434bd1619cd47dc2d70d5d0cf0c491.
 Why: The condition for dispatching ac73f55 (a crash fix ready) is met. Pinning upstream to the run-5 commit keeps the RustBuffer fix and the ABI change the only variables, and maximizes delta-installer reuse against the installed run-5 APK.
 Supersedes: "Do not dispatch ac73f55 alone" (2026-11-24T06:23Z), whose condition is now met.
+
+## 2026-11-25T06:48Z — Write the delta installer as stdlib Python plus a fish wrapper (tools/delta/)
+What: filen_delta.py builds the release APK from the installed base.apk plus single-range fetches, verifies sha256 against the release digest, and falls back to a full resumable download; filen_delta.fish prompts, then streams the install through rish. A verified APK cached on disk skips the network entirely.
+Why: Implements the 2026-11-24T06:01Z delta-installer decision. Stdlib-only Python keeps the tablet install to two files; the offline-first cache path honours the intermittent-internet constraint; the final sha256 check plus automatic full-download fallback makes unverified assumptions about local-header byte equality safe.
+Supersedes: "design (not yet written)" state of delta-installer.md. Does not supersede any earlier decision.

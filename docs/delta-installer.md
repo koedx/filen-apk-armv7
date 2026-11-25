@@ -1,18 +1,27 @@
-# Delta installer — design (not yet written)
+# Delta installer — design (written, untested on device)
+
+Code: `tools/delta/filen_delta.py` (stdlib-only Python glue) and `tools/delta/filen_delta.fish` (wrapper function `filen_delta`). Install on the tablet into ~/dev/filen-delta (apks cached in ~/dev/filen-delta/apks).
 
 ## Facts it relies on
 - Release CDN: single-range requests work (206); multi-range returns 501.
 - rish streams binary cleanly; install via stdin with explicit size.
 - Run 3 → run 5: 158.4 MB byte-identical (per-entry CRC), 110.2 MB changed in 9 contiguous runs, plus zip index and signing block ≈ 12 range requests. x86_64 libs were unchanged (no delta cost); dropping them saves ~73 MB of APK/flash only.
 
+## Usage
+`filen_delta TAG [--dry-run] [--no-install] [--full]` — TAG is the release tag (e.g. apk-7153fce-run6). Python logs to stderr with section banners; stdout carries only the final APK path. Exit codes: 0 ok, 2 preflight/usage, 3 network, 4 verification failed.
+
 ## Design
-1. Seed: locate installed APK (`pm path io.filen.app`) and stream it via `rish -c "cat <path>"`.
-2. Read the new APK's zip central directory via single Range requests.
-3. Copy unchanged entries from the seed; fetch changed byte runs with single ranges. Resolve the release redirect once; re-resolve on URL expiry; retry.
-4. Verify size and sha256 against the release asset digest.
-5. Fallback: full resumable download (curl -C -).
-6. Stream install: `cat apk | rish -c "pm install -r -S <bytes>"`.
+1. Offline path first: if `<tag>-Filen-armv7.apk` and its `.sha256` sidecar exist and verify, skip all network and go to install.
+2. Release metadata via REST (`/repos/koedx/filen-apk-armv7/releases/tags/<tag>`): asset size and `sha256:` digest.
+3. Preflight: free space in the cache dir ≥ APK size + 64 MB (≈ 0.33 GB, under 1 GiB).
+4. Plan: seed = installed base.apk (`pm path io.filen.app`, read via `rish -c "tail -c +N file | head -c M"`). Read the zip central directory of seed and release APK (EOCD + CD + APK Sig Block boundary). An entry's byte region is reusable when name, CRC, sizes, method, flags and region length all match. Regions contiguous in both files are coalesced; copy runs under 64 KiB are fetched instead. Everything else (changed entries, signing block, central directory, EOCD) is fetched, one Range request per gap. zip64 is not supported (falls back to full download).
+5. Assemble sequentially into `.part`, hashing as it writes. Resolve the release redirect once; re-resolve and resume from the last byte on error (5 tries). Each response must be 206 with a matching Content-Range.
+6. Verify size and sha256 against the digest. On mismatch the assembled file is discarded and a full resumable download (Range from the current size) is used. A failed final verification keeps the `.part` for inspection (exit 4). Success renames to the final name and writes the sidecar.
+7. Install (fish wrapper): confirmation prompt, then `cat apk | rish -c "pm install -r -S <bytes>"`, then show package path, versionName, primaryCpuAbi.
 
 ## Constraints
-- Fish function wrapping Python glue is acceptable.
-- Preflight free space; keep the APK on failure; ask before deleting; verbose output with section banners; no temp cruft.
+- Never deletes cached APKs; asks before installing; verbose output; no temp files other than `.part` and the sidecar.
+- No GitHub token is used; the repo's release assets must be publicly downloadable.
+
+## Verified (local test only)
+Synthetic APKs with an APK Sig Block, a Range-capable mock server and a fake rish: delta rebuild byte-identical (3.0 of 8.3 MB fetched, 7 requests); offline cache path with the server down; corrupt seed falls back to full download and verifies; bad digest exits 4; dry run; missing seed falls back. See status.md for what is still UNVERIFIED on the real device and CDN.
