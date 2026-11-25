@@ -86,3 +86,8 @@ Supersedes: the implicit assumption that rish text output arrives on stdout (del
 What: filen_delta.py reads the installed base.apk with `adb -s <serial> exec-out "tail|head"` and filen_delta.fish installs with `adb -s <serial> install -r`. The serial is a `...:5555` entry if listed, else the only online device (emulator-5554 on the tablet). Any seed-reading failure falls back to the full download. Staging the seed through /sdcard/Download remains a verified, unimplemented fallback.
 Why: Tablet tests on 2026-11-25 showed rish bulk stdout loses bytes and splits data across stdout and stderr (all four variants failed), while adb exec-out matched hashes for three 20 MB slices and the whole 269 MB seed in 9 s. adb is already installed and shares Shizuku's bootstrap, so it adds no setup, no temp copy and no extra disk.
 Supersedes: rish as the seed-read and install transport (delta-installer.md steps 4 and 7 as of spec 8), and the 2026-11-24T06:01Z entry's assumption that rish streams binary cleanly both ways.
+
+## 2026-11-25T10:03Z — adb is the default channel for device shell commands handed to the user
+What: Commands for the tablet that need shell-level access are framed as `adb` invocations (`adb shell ...`, `adb exec-out ...`, `adb install`), using `-s <serial>` or ANDROID_SERIAL when more than one device is listed. rish is kept only as a fallback when adb is not connected.
+Why: Tablet benchmark on 2026-11-25: about 110 ms per call for adb against about 1,000 ms for rish, and adb passed every bulk-transfer test that rish failed. The user asked to switch if adb dominated.
+Supersedes: the earlier convention of framing device commands as rish invocations.

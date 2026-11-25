@@ -1,4 +1,4 @@
-# Status — 2026-11-25T09:57Z
+# Status — 2026-11-25T10:03Z
 
 ## UNVERIFIED claims
 - The ubrn RustBuffer size_t/u64 mismatch on armv7 causes the run-5 SIGSEGV (crash-triage.md). The mismatch itself is verified; the causal link is not.
@@ -13,6 +13,9 @@
 - Does run 6 (RustBuffer fix) launch past the ~5 s crash point?
 - If not: what do the run-6 crash pcs symbolicate to with the unstripped lib?
 - What fraction of run 6 can be reused from the installed run-5 APK? (`filen_delta apk-7153fce-run6 --dry-run` reports it.)
+
+## Answered (2026-11-25 latency benchmark, 10:03Z)
+- adb per-call round trip ≈ 110 ms vs rish ≈ 1,000 ms on the tablet; adb is the default channel for device commands (decisions.md).
 
 ## Answered (2026-11-25 adb transport test, 09:55Z)
 - adb `exec-out` is reliable for bulk data: three 20 MB slices hash-matched and the whole 269,401,212-byte seed streamed in 9 s with a matching sha256. The installed run-5 base.apk is byte-identical to the run-5 release asset (sha256 409ae6cb…).
