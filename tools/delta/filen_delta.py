@@ -115,10 +115,32 @@ class Remote:
 
 # ---------------------------------------------------------------- rish seed
 
+def rish_text(rish, cmd):
+    """Run a text-producing command via rish; return (rc, text).
+    Observed on the tablet: `pm path` output arrives on stderr with stdout empty, so
+    fall back to stderr when stdout has nothing."""
+    try:
+        p = subprocess.run([rish, "-c", cmd], capture_output=True)
+    except OSError as e:
+        raise Fail(f"cannot execute rish ('{rish}'): {e}. If rish is a fish function/alias, "
+                   f"python cannot call it; pass --rish /path/to/rish")
+    out = p.stdout.decode(errors="replace").strip()
+    err = p.stderr.decode(errors="replace").strip()
+    log(f"  rish exit={p.returncode} stdout={out[:120]!r} stderr={err[:200]!r}")
+    if p.returncode != 0:
+        raise Fail(f"rish failed (exit {p.returncode}) running `{cmd}`: {err or out or 'no output'}. "
+                   f"Check RISH_APPLICATION_ID is exported (set -gx) in this shell")
+    return p.returncode, (out or err)
+
+
 class Seed:
     def __init__(self, path, rish):
         self.path, self.rish = path, rish
-        self.size = int(self._run(f"stat -c %s '{path}'").decode().strip())
+        _, txt = rish_text(rish, f"stat -c %s '{path}'")
+        try:
+            self.size = int(txt.split()[0])
+        except (ValueError, IndexError):
+            raise Fail(f"could not read size of {path} via rish stat; got {txt!r}")
 
     def _run(self, cmd):
         p = subprocess.run([self.rish, "-c", cmd], capture_output=True)
@@ -144,7 +166,8 @@ class Seed:
             got += len(b)
         p.wait()
         if got != end - start or p.returncode != 0:
-            raise Fail(f"seed stream wrong: wanted {end - start}, got {got}, rc {p.returncode}")
+            err = p.stderr.read(300).decode(errors="replace").strip()
+            raise Fail(f"seed stream wrong: wanted {end - start}, got {got}, rc {p.returncode}; stderr={err!r}")
 
 
 # ---------------------------------------------------------------- zip parsing
@@ -215,21 +238,10 @@ def plan(new, seed, new_size, new_region_end):
 # ---------------------------------------------------------------- main flow
 
 def find_seed(rish):
-    """Return the installed base.apk path, or None if the package is not installed.
-    Raises Fail with rish's own exit code and stderr if rish itself fails."""
+    """Return the installed base.apk path, or None if the package is not installed."""
     cmd = f"pm path {PKG}"
     log(f"  running: {rish} -c '{cmd}'")
-    try:
-        p = subprocess.run([rish, "-c", cmd], capture_output=True)
-    except OSError as e:
-        raise Fail(f"cannot execute rish ('{rish}'): {e}. If rish is a fish function/alias, "
-                   f"python cannot call it; pass --rish /path/to/rish")
-    out = p.stdout.decode(errors="replace").strip()
-    err = p.stderr.decode(errors="replace").strip()
-    log(f"  rish exit={p.returncode} stdout={out[:200]!r} stderr={err[:300]!r}")
-    if p.returncode != 0:
-        raise Fail(f"rish failed (exit {p.returncode}): {err or out or 'no output'}. "
-                   f"Check RISH_APPLICATION_ID is exported (set -gx) in this shell")
+    _, out = rish_text(rish, cmd)
     lines = [l.strip()[8:] for l in out.splitlines() if l.strip().startswith("package:")]
     base = [l for l in lines if l.endswith("/base.apk")] or lines
     return base[0] if base else None
