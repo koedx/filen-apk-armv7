@@ -1,6 +1,6 @@
 # Filen armv7 APK — spec index
 
-Version: spec 5 · 2026-11-25T07:09Z
+Version: spec 6 · 2026-11-25T07:14Z
 
 Read first each session: this file, then status.md.
 

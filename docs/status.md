@@ -1,4 +1,4 @@
-# Status — 2026-11-25T07:09Z
+# Status — 2026-11-25T07:14Z
 
 ## UNVERIFIED claims
 - The ubrn RustBuffer size_t/u64 mismatch on armv7 causes the run-5 SIGSEGV (crash-triage.md). The mismatch itself is verified; the causal link is not.

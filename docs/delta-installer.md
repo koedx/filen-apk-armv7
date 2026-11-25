@@ -1,6 +1,6 @@
 # Delta installer — design (written, untested on device)
 
-Code: `tools/delta/filen_delta.py` (stdlib-only Python glue) and `tools/delta/filen_delta.fish` (wrapper function `filen_delta`). On the tablet: clone the repo to ~/dev/filen-apk-armv7 and `git pull --ff-only` to update; source tools/delta/filen_delta.fish. Verified APKs are cached outside the working tree in ~/dev/filen-apks (override: FILEN_DELTA_APKS; script dir override: FILEN_DELTA_HOME).
+Code: `tools/delta/filen_delta.py` (stdlib-only Python glue) and `tools/delta/filen_delta.fish` (wrapper function `filen_delta`). On the tablet: clone the repo to ~/dev/filen/filen-apk-armv7 and `git pull --ff-only` to update; source tools/delta/filen_delta.fish. Verified APKs are cached outside the working tree in ~/dev/filen/apks (override: FILEN_DELTA_APKS; script dir override: FILEN_DELTA_HOME).
 
 ## Facts it relies on
 - Release CDN: single-range requests work (206); multi-range returns 501.

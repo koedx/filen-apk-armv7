@@ -1,7 +1,7 @@
 # filen_delta.fish - delta-install a Filen armv7 release APK (see spec/delta-installer.md)
 # Usage: filen_delta TAG [--dry-run] [--no-install] [--full]
-# Layout: clone koedx/filen-apk-armv7 to ~/dev/filen-apk-armv7; filen_delta.py lives next to this file in tools/delta.
-# Override the script dir with FILEN_DELTA_HOME. APKs are cached OUTSIDE the repo in ~/dev/filen-apks
+# Layout: clone koedx/filen-apk-armv7 to ~/dev/filen/filen-apk-armv7; filen_delta.py lives next to this file in tools/delta.
+# Override the script dir with FILEN_DELTA_HOME. APKs are cached OUTSIDE the repo in ~/dev/filen/apks
 # (override with FILEN_DELTA_APKS); this tool never deletes them.
 
 function filen_delta --description 'Delta-install a Filen armv7 release APK'
@@ -12,8 +12,8 @@ function filen_delta --description 'Delta-install a Filen armv7 release APK'
     end
 
     set -l tag $argv[1]
-    set -l home (set -q FILEN_DELTA_HOME; and echo $FILEN_DELTA_HOME; or echo ~/dev/filen-apk-armv7/tools/delta)
-    set -l apkdir (set -q FILEN_DELTA_APKS; and echo $FILEN_DELTA_APKS; or echo ~/dev/filen-apks)
+    set -l home (set -q FILEN_DELTA_HOME; and echo $FILEN_DELTA_HOME; or echo ~/dev/filen/filen-apk-armv7/tools/delta)
+    set -l apkdir (set -q FILEN_DELTA_APKS; and echo $FILEN_DELTA_APKS; or echo ~/dev/filen/apks)
     set -l pkg io.filen.app
     set -l pyargs
 

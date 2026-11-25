@@ -71,3 +71,8 @@ Supersedes: "design (not yet written)" state of delta-installer.md. Does not sup
 What: The tablet holds a clone at ~/dev/filen-apk-armv7 (installer at tools/delta/, spec in docs/, updated with git pull --ff-only). Cached APKs live in ~/dev/filen-apks, outside the clone.
 Why: One clone gives the installer and the spec and stays current by pulling. Keeping expensive-to-reacquire APKs out of the working tree means a pull, checkout or git clean cannot delete them.
 Supersedes: the install location ~/dev/filen-delta (apks in ~/dev/filen-delta/apks) stated in delta-installer.md at spec 4.
+
+## 2026-11-25T07:14Z — Group tablet folders under a per-project root ~/dev/filen/
+What: The clone lives at ~/dev/filen/filen-apk-armv7 and the APK cache at ~/dev/filen/apks. Folders directly under ~/dev group per project; related repos (e.g. filen-cli-armv7) can join ~/dev/filen/.
+Why: Keeps ~/dev uncluttered; the cache stays outside the clone so pull/git clean cannot touch it.
+Supersedes: the paths ~/dev/filen-apk-armv7 and ~/dev/filen-apks from the 2026-11-25T07:09Z entry (its reasoning about keeping the cache outside the clone stands).
