@@ -5,7 +5,8 @@
 - The mechanism by which a null future handle reaches rust_future_free_pointer (crash-triage.md).
 - Delta installer: the real release redirect (github.com → signed CDN URL) honours a single Range on the resolved URL and gives a matching Content-Range (single ranges were seen to work earlier; this exact code path ran only against a mock server).
 - Delta installer: seed entries with matching CRC/sizes have byte-identical local-header regions in the new APK (guarded by the final sha256 and automatic full-download fallback; the reuse fraction is unknown until a real dry run).
-- `pm install -r -S` of run 6 over run 5 succeeds (same signing key assumed; not tried), and streaming a ~154 MB APK to it over rish stdin is intact (only a small payload was checked earlier).
+- `pm install -r -S` of run 6 over run 5 succeeds (same signing key assumed; not tried).
+- Streaming a ~154 MB APK into `pm install -S` over rish stdin arrives intact (only a small payload was checked earlier).
 - Staging a full 269 MB seed copy through /sdcard/Download works like the 20 MB probe did (not tried at full size).
 
 ## Open questions
