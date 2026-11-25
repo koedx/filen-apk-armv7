@@ -1,4 +1,4 @@
-# Status — 2026-11-25T07:14Z
+# Status — 2026-11-25T08:10Z
 
 ## UNVERIFIED claims
 - The ubrn RustBuffer size_t/u64 mismatch on armv7 causes the run-5 SIGSEGV (crash-triage.md). The mismatch itself is verified; the causal link is not.
@@ -8,6 +8,8 @@
 - Delta installer: seed entries with matching CRC/sizes have byte-identical local-header regions in the new APK (guarded by the final sha256 and automatic full-download fallback; the reuse fraction is unknown until a real dry run).
 - Delta installer: python3 (stdlib only) is available in Termux on the tablet, and the fish wrapper parses (fish was not installed in the Claude workspace, so only the Python was syntax-checked).
 - `pm install -r -S` of run 6 over run 5 succeeds (same signing key assumed; not tried).
+
+- rish output streams (observed on the tablet 2026-11-25T08:08Z): `pm path io.filen.app` printed its answer on stderr with stdout empty. The installer now reads stdout and falls back to stderr for text commands (`pm path`, `stat`). UNVERIFIED: whether `stat -c %s` also lands on stderr, and that `tail -c +N file | head -c M` data stays on stdout (earlier verification covered `cat` only).
 
 ## Open questions
 - Does run 6 (RustBuffer fix) launch past the ~5 s crash point?

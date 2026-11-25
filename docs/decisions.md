@@ -76,3 +76,8 @@ Supersedes: the install location ~/dev/filen-delta (apks in ~/dev/filen-delta/ap
 What: The clone lives at ~/dev/filen/filen-apk-armv7 and the APK cache at ~/dev/filen/apks. Folders directly under ~/dev group per project; related repos (e.g. filen-cli-armv7) can join ~/dev/filen/.
 Why: Keeps ~/dev uncluttered; the cache stays outside the clone so pull/git clean cannot touch it.
 Supersedes: the paths ~/dev/filen-apk-armv7 and ~/dev/filen-apks from the 2026-11-25T07:09Z entry (its reasoning about keeping the cache outside the clone stands).
+
+## 2026-11-25T08:10Z — Read rish text output from stdout, falling back to stderr
+What: filen_delta.py parses text answers (pm path, stat) from rish stdout and falls back to stderr when stdout is empty; non-zero rish exit codes and stderr are always reported.
+Why: On the tablet, `pm path io.filen.app` returned exit 0 with the answer on stderr and stdout empty, so the stdout-only parser wrongly reported the package as not installed.
+Supersedes: the implicit assumption that rish text output arrives on stdout (delta-installer.md design step 4).
