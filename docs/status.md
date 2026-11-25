@@ -21,6 +21,6 @@
 
 ## Next steps (ordered)
 1. DONE: run 6 (id 45346897158) succeeded at 2026-11-24T08:36Z; assets in build-ci.md.
-2. DONE: delta installer written and locally tested (tools/delta/). Clone the repo to ~/dev/filen-apk-armv7 on the tablet and source tools/delta/filen_delta.fish, then `filen_delta apk-7153fce-run6 --dry-run`, then without `--dry-run`. — Sonnet
+2. DONE: delta installer written and locally tested (tools/delta/). Clone the repo to ~/dev/filen/filen-apk-armv7 on the tablet and source tools/delta/filen_delta.fish, then `filen_delta apk-7153fce-run6 --dry-run`, then without `--dry-run`. — Sonnet
 3. After install: launch and capture logs: logcat -c, `monkey -p io.filen.app -c android.intent.category.LAUNCHER 1`, wait ~10 s, grep log. Confirm APK ABIs and primaryCpuAbi. — Sonnet
 4. If it still crashes: download libfilen_sdk_rs-armv7-unstripped.so.gz (to the Claude workspace, not the tablet) and symbolicate the tombstone pcs. — Opus
