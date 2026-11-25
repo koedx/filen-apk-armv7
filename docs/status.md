@@ -6,7 +6,6 @@
 - Delta installer, on the real device (delta-installer.md): toybox `tail -c +N file | head -c M` through rish seeks and streams correctly for 100+ MB runs (tested only with GNU tools and a fake rish).
 - Delta installer: the real release redirect (github.com → signed CDN URL) honours a single Range on the resolved URL and gives a matching Content-Range (single ranges were seen to work earlier; this exact code path ran only against a mock server).
 - Delta installer: seed entries with matching CRC/sizes have byte-identical local-header regions in the new APK (guarded by the final sha256 and automatic full-download fallback; the reuse fraction is unknown until a real dry run).
-- Delta installer: python3 (stdlib only) is available in Termux on the tablet, and the fish wrapper parses (fish was not installed in the Claude workspace, so only the Python was syntax-checked).
 - `pm install -r -S` of run 6 over run 5 succeeds (same signing key assumed; not tried).
 - rish output streams (observed on the tablet 2026-11-25T08:08Z): `pm path io.filen.app` printed its answer on stderr with stdout empty. The installer now reads stdout and falls back to stderr for text commands (`pm path`, `stat`). UNVERIFIED: whether `stat -c %s` also lands on stderr, and that `tail -c +N file | head -c M` data stays on stdout (earlier verification covered `cat` only).
 
@@ -14,6 +13,9 @@
 - Does run 6 (RustBuffer fix) launch past the ~5 s crash point?
 - If not: what do the run-6 crash pcs symbolicate to with the unstripped lib?
 - What fraction of run 6 can be reused from the installed run-5 APK? (`filen_delta apk-7153fce-run6 --dry-run` reports it.)
+
+## Answered (2026-11-25 tablet run)
+- python3 (stdlib) is available in Termux and the fish wrapper parses and runs; REST release-metadata and free-space preflight work on the tablet (dry run at 2026-11-25T08:08Z).
 
 ## Answered (2026-11-24 source read)
 - Who calls rust_future_free_pointer: ubrn's generic `uniffiRustCallAsync` helper, in its `finally` block, for every pointer-returning async call (14 call sites in src/generated/filen_sdk_rs.ts).
