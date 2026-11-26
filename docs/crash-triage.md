@@ -1,4 +1,4 @@
-# Crash triage — run 5
+# Crash triage — run 5 (fixed in run 6, user-reported)
 
 ## Fixed
 - UnsatisfiedLinkError (run 3): libfilen-sdk-rs.so missing because @filen/sdk-rs ships only arm64-v8a and x86_64 libs. FIXED in run 5: armv7 libfilen_sdk_rs.so loads; Rust runtime starts ("Creating Tokio runtime", "Auth file not found"); MainActivity displays at +5.7 s.
@@ -26,6 +26,10 @@ UNVERIFIED:
 - The exact path to a null handle at free time. Reasoning: uniffi's `rust_future_poll` also dereferences the handle (`get_arc`), and the JS helper (`uniffiRustCallAsync`) passes the same bigint to poll and free. A null handle reaching free without crashing in poll therefore suggests stack or argument corruption around the async call, which fits the mismatch.
 
 Fix in CI: patch RustBuffer.h to `uint64_t` after `pnpm install`, plus a `static_assert` guard (see build-ci.md).
+
+## Run 6 outcome
+- Run 6 (RustBuffer patch and armv7-only, same upstream commit 7153fce as run 5) was installed 2026-11-25T10:47Z. The user reports the app loads and functions (2026-11-26T05:55Z); no logcat was captured and uploads/downloads are untried.
+- Run 6 changed two things at once (the RustBuffer patch and dropping x86_64), so this is consistent with the RustBuffer cause but does not isolate it: still UNVERIFIED.
 
 ## Ruled out
 - Future-handle type in the bindings: in @filen/sdk-rs@0.5.34, cpp/generated/filen_sdk_rs.cpp declares future handles as uint64_t and src/generated/filen_sdk_rs-ffi.ts types them as bigint. Matches the uniffi ABI.

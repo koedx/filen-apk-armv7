@@ -42,18 +42,24 @@
 | 3 | 2026-11-19T11:16Z | 38d206c | success — crashes on device (UnsatisfiedLinkError) |
 | 4 | 2026-11-23T06:48Z | 32a68da | failure (sdk-rs package path lookup) |
 | 5 | 2026-11-23T07:17Z | e59aceb | success — installed; SIGSEGV ~5 s after launch |
-| 6 | 2026-11-24T07:17Z | c077b57 (filen-ts 7153fce) | success (completed 2026-11-24T08:36Z) — RustBuffer patch + armv7-only + unstripped lib; run id 45346897158; not yet installed or launched |
+| 6 | 2026-11-24T07:17Z | c077b57 (filen-ts 7153fce) | success (completed 2026-11-24T08:36Z) — RustBuffer patch + armv7-only + unstripped lib; run id 45346897158; delta-installed 2026-11-25T10:47Z; the user reports the app loads and works |
 
 ## Release assets
 | Run | Tag | Asset | Bytes | sha256 |
 |---|---|---|---|---|
-| 6 | apk-7153fce-run6 | Filen-armv7.apk | 154285259 | e09a125a46868e3a5d6164b4e14c972a001878d3affe5cc72dad794f1fde57d3 |
+| 6 (installed) | apk-7153fce-run6 | Filen-armv7.apk | 154285259 | e09a125a46868e3a5d6164b4e14c972a001878d3affe5cc72dad794f1fde57d3 |
 | 6 | apk-7153fce-run6 | libfilen_sdk_rs-armv7-unstripped.so.gz | 63619793 | b665ee483505e2fc885ed0affb42d3c3ac454b13d0bd0daa1fadef33848112a9 |
-| 5 (installed) | apk-7153fce-run5 | Filen-armv7.apk | 269401212 | 409ae6cbc0f077f140cbe65c4610b77c171070123581e18c6e7ff1a313338a17 |
+| 5 | apk-7153fce-run5 | Filen-armv7.apk | 269401212 | 409ae6cbc0f077f140cbe65c4610b77c171070123581e18c6e7ff1a313338a17 |
 | 3 | apk-09b67ce-run3 | Filen-armv7.apk | 238425656 | 2b3184c461a5f0cc3b8686c7d9d63b2dc984eb00ef343d5e67a415845ae31ccb |
 
 - Digests are exposed by the API:
   `gh api repos/koedx/filen-apk-armv7/releases/tags/<tag> --jq '.assets[].digest'`
 
 ## Installed build
-- io.filen.app, versionName 4.0.19, primaryCpuAbi=armeabi-v7a (run 5). Run 6 is built but not yet installed.
+- io.filen.app, versionName 4.0.19, primaryCpuAbi=armeabi-v7a: run 6 (tag apk-7153fce-run6), delta-installed over run 5 on 2026-11-25T10:47Z. The versionName matches the upstream tag filen-mobile@4.0.19 (7f83a21); whether the built commit 7153fce equals that tag's tree is UNVERIFIED.
+
+## Tracking and applying updates
+- Track (free): compare the newest upstream tag `filen-mobile@x.y.z` in FilenCloudDienste/filen-ts with the versionName above (`git ls-remote --tags https://github.com/FilenCloudDienste/filen-ts 'refs/tags/filen-mobile@*'`). A weekly scheduled task ("Filen upstream release check", Mondays 17:34 America/Chicago, read-only) does this and notifies only when a newer release exists; it never dispatches a build.
+- Review (free): before any dispatch, diff upstream against the pinned commit and check whether the @filen/sdk-rs, ubrn or uniffi pins changed (the CI patch and SDK lib build depend on them).
+- Build (~2 h): dispatch with `ref` = the new release tag or commit, only with a stated reason.
+- Apply on the tablet: `filen_delta --latest` (or `filen_delta <tag>`).

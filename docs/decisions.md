@@ -101,3 +101,13 @@ Supersedes: the "rish is kept only as a fallback" clause of the 2026-11-25T10:03
 What: filen_delta.py draws a progress bar (percent, MB done/total, speed, ETA) during assembly and full download; on a terminal it redraws in place, otherwise it prints one line per 10%.
 Why: Standing user preference: any download shows visible progress (speed, ETA, bar), never a silent fetch. The installer previously logged only per-segment lines.
 Supersedes: the progress-less assembly and download output of the 2026-11-25T06:48Z installer. Does not supersede any decision.
+
+## 2026-11-26T06:03Z — Installer gains --latest
+What: `filen_delta --latest` (in place of TAG) resolves the newest release through the REST API: highest run number among non-draft releases whose Filen-armv7.apk carries a sha256 digest. It needs the network; installing an already cached APK offline still uses the TAG form.
+Why: With updates arriving as new release tags, the user would otherwise have to look up the tag by hand. Run number, not date, decides recency so a re-published older release cannot win.
+Supersedes: the TAG-only usage in delta-installer.md. Does not supersede any decision.
+
+## 2026-11-26T06:03Z — Weekly read-only upstream release check
+What: A scheduled task ("Filen upstream release check", Mondays 17:34 America/Chicago) compares the newest upstream `filen-mobile@x.y.z` tag with the installed versionName in build-ci.md and sends a notification only when a newer version exists. It never dispatches a build, pushes or edits; the baseline is the versionName under "Installed build" in build-ci.md (4.0.19).
+Why: Tracking upstream is free, while each build is a ~2 h CI run that needs a stated hypothesis, so only the cheap check is automated; the build stays a manual decision after an upstream diff review (sdk-rs, ubrn and uniffi pins).
+Supersedes: the absence of any update tracking. Does not supersede any decision.

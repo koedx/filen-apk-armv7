@@ -9,7 +9,7 @@ Code: `tools/delta/filen_delta.py` (stdlib-only Python glue) and `tools/delta/fi
 - Run 3 → run 5: 158.4 MB byte-identical (per-entry CRC), 110.2 MB changed in 9 contiguous runs, plus zip index and signing block ≈ 12 range requests. x86_64 libs were unchanged (no delta cost); dropping them saves ~73 MB of APK/flash only.
 
 ## Usage
-`filen_delta TAG [--dry-run] [--no-install] [--full]` — TAG is the release tag (e.g. apk-7153fce-run6). Python logs to stderr with section banners; stdout carries only the final APK path. Exit codes: 0 ok, 2 preflight/usage, 3 network, 4 verification failed.
+`filen_delta TAG|--latest [--dry-run] [--no-install] [--full]` — TAG is the release tag (e.g. apk-7153fce-run6). `--latest` replaces TAG: it asks the REST API for the newest release, meaning the highest run number among non-draft releases that carry a sha256-verified Filen-armv7.apk. It needs the network (no offline path); to install an already cached APK offline, give its TAG. Python logs to stderr with section banners; stdout carries only the final APK path. Exit codes: 0 ok, 2 preflight/usage, 3 network, 4 verification failed.
 
 ## Design
 1. Offline path first: if `<tag>-Filen-armv7.apk` and its `.sha256` sidecar exist and verify, skip all network and go to install.
@@ -29,4 +29,4 @@ Code: `tools/delta/filen_delta.py` (stdlib-only Python glue) and `tools/delta/fi
 Run 6 (2026-11-25T10:47Z): delta rebuild from the installed run-5 base.apk, 77.9 MB copied and 76.5 MB fetched in 9 requests, sha256 matched the release digest, `adb install -r` Success, primaryCpuAbi=armeabi-v7a. The progress bar, the mid-assembly seed-failure fallback and the full-download fallback have not run on the tablet.
 
 ## Verified (local test only)
-Synthetic APKs with an APK Sig Block, a Range-capable mock server and a fake adb (only emulator-5554; :5555 plus alias; ambiguous devices; truncated exec-out; adb missing; device appearing after `adb connect`; fish end-to-end with install): delta rebuild byte-identical (3.0 of 8.3 MB fetched, 7 requests); offline cache path with the server down; corrupt seed falls back to full download and verifies; bad digest exits 4; dry run; missing seed falls back. See status.md for what is still UNVERIFIED on the real device and CDN.
+Synthetic APKs with an APK Sig Block, a Range-capable mock server and a fake adb (only emulator-5554; :5555 plus alias; ambiguous devices; truncated exec-out; adb missing; device appearing after `adb connect`; fish end-to-end with install): delta rebuild byte-identical (3.0 of 8.3 MB fetched, 7 requests); offline cache path with the server down; corrupt seed falls back to full download and verifies; bad digest exits 4; dry run; missing seed falls back. `--latest` was tested only against a mock releases API (draft and digest-less releases skipped, newest run chosen; TAG and --latest together or neither rejected). See status.md for what is still UNVERIFIED on the real device and CDN.

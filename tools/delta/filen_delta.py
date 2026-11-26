@@ -8,7 +8,7 @@ Logs go to stderr (verbose, with section banners). The only stdout output is the
 final verified APK path, so the fish wrapper can capture it.
 Exit codes: 0 ok, 2 preflight/usage, 3 network, 4 verification failed.
 """
-import argparse, hashlib, json, os, shutil, struct, subprocess, sys, time
+import argparse, hashlib, json, os, re, shutil, struct, subprocess, sys, time
 import urllib.error, urllib.parse, urllib.request
 
 REPO = "koedx/filen-apk-armv7"
@@ -329,7 +329,8 @@ def verify(path, size, sha):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("tag")
+    ap.add_argument("tag", nargs="?", help="release tag (omit with --latest)")
+    ap.add_argument("--latest", action="store_true", help="use the newest release that has a verified APK asset (needs network)")
     ap.add_argument("--dir", required=True)
     ap.add_argument("--serial", help="adb serial (default: ...:5555, else the only online device)")
     ap.add_argument("--api", default=os.environ.get("FILEN_DELTA_API", "https://api.github.com"))
@@ -337,6 +338,26 @@ def main():
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--full", action="store_true", help="skip delta, full resumable download")
     a = ap.parse_args()
+    if bool(a.tag) == a.latest:
+        ap.error("give exactly one of TAG or --latest")
+
+    if a.latest:
+        log("\n===== latest release (REST) =====")
+        rels = http_json(f"{a.api}/repos/{REPO}/releases?per_page=30")
+        cands = []
+        for r in rels:
+            if r.get("draft"):
+                continue
+            ast = next((x for x in r.get("assets", []) if x["name"] == ASSET), None)
+            if not ast or not ast.get("digest", "").startswith("sha256:"):
+                continue
+            m = re.search(r"-run(\d+)$", r["tag_name"])
+            cands.append((int(m.group(1)) if m else -1, r.get("published_at") or "", r["tag_name"]))
+        if not cands:
+            raise Fail(f"no release with a sha256-verified {ASSET} found", 3)
+        cands.sort()
+        a.tag = cands[-1][2]
+        log(f"  newest: {a.tag} (highest run number of {len(cands)} release(s) with {ASSET})")
 
     os.makedirs(a.dir, exist_ok=True)
     final = os.path.join(a.dir, f"{a.tag}-{ASSET}")
