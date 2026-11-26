@@ -28,7 +28,7 @@ UNVERIFIED:
 Fix in CI: patch RustBuffer.h to `uint64_t` after `pnpm install`, plus a `static_assert` guard (see build-ci.md).
 
 ## Run 6 outcome
-- Run 6 (RustBuffer patch and armv7-only, same upstream commit 7153fce as run 5) was installed 2026-11-25T10:47Z. The user reports the app loads and functions (2026-11-26T05:55Z); no logcat was captured and uploads/downloads are untried.
+- Run 6 (RustBuffer patch and armv7-only, same upstream commit 7153fce as run 5) was installed 2026-11-25T10:47Z. The user reports the app loads and functions (2026-11-26T05:55Z). A logcat launch check (about 2026-11-26T06:06Z) found the process alive at every check from 3 s to 15 s and still present at ~18 s, with no FATAL, SIGSEGV or tombstone lines in the filtered log and MainActivity rendering. Uploads and downloads are untried.
 - Run 6 changed two things at once (the RustBuffer patch and dropping x86_64), so this is consistent with the RustBuffer cause but does not isolate it: still UNVERIFIED.
 
 ## Ruled out

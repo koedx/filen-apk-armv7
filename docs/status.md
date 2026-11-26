@@ -1,11 +1,11 @@
-# Status — 2026-11-26T06:03Z
+# Status — 2026-11-26T06:38Z
 
 ## UNVERIFIED claims
-- The ubrn RustBuffer size_t/u64 mismatch on armv7 causes the run-5 SIGSEGV (crash-triage.md). The mismatch itself is verified; the causal link is not (run 6 runs after the patch, but also dropped x86_64, and no logcat was captured).
+- The ubrn RustBuffer size_t/u64 mismatch on armv7 causes the run-5 SIGSEGV (crash-triage.md). The mismatch itself is verified; the causal link is not (run 6 survives past the crash point after the patch, but also dropped x86_64).
 - The mechanism by which a null future handle reaches rust_future_free_pointer (crash-triage.md).
 - Installer paths not yet exercised on the tablet: the mid-assembly seed-failure fallback, the full-download fallback, and the progress bar (the 2026-11-25T10:47Z run predates it; the in-place redraw on a terminal is untested).
 - The loopback adb connection survives until reboot or until adb over TCP is restarted; after that the installer tries `adb connect localhost:5555` once and otherwise falls back to a full download.
-- Run 6 "loads and functions as expected" is the user's report (2026-11-26T05:55Z); uploads and downloads are untried and no logcat was captured.
+- Run 6 "loads and functions as expected" is the user's report (2026-11-26T05:55Z); uploads and downloads are untried. The filtered logcat contains no ReactNative, filen_sdk or uniffi lines at all (as in the crashed run 5), so app-level health beyond "the process stays alive and draws" rests on the user's report.
 - The weekly scheduled check ("Filen upstream release check") and `filen_delta --latest` against the real GitHub API have not run yet; `--latest` was tested only against a mock.
 
 ## Open questions
@@ -13,7 +13,7 @@
 - When upstream releases a version newer than 4.0.19: did the sdk-rs, ubrn or uniffi pins change?
 
 ## Answered (2026-11-26)
-- Run 6 launches and the app loads and functions (user-reported); the run-5 crash at ~5 s is gone. The unstripped-lib symbolication path is not needed unless a crash returns.
+- Run 6 launches and the app loads and functions (user-reported). Logcat launch check, about 2026-11-26T06:06Z: process pid 31122 alive at every check from 3 s to 15 s and still present at ~18 s; no FATAL, AndroidRuntime (app), SIGSEGV or tombstone lines; MainActivity rendering (frame rate rises from ~3 to ~60 fps after the first seconds); normal GC. The run-5 crash at ~5 s is gone. The unstripped-lib symbolication path is not needed unless a crash returns.
 
 ## Answered (2026-11-25 first real installer run, 10:47Z)
 - The delta rebuild of run 6 from the installed run-5 base.apk matched the release sha256 (so seed entries with matching CRC/sizes do have byte-identical regions) and used the real release redirect with single Range requests: 77.9 MB copied from the seed, 76.4 MB fetched, 76.5 MB over the network in 9 requests (about half of 154.3 MB).
@@ -42,7 +42,7 @@
 1. DONE: run 6 (id 45346897158) succeeded at 2026-11-24T08:36Z; assets in build-ci.md.
 2. DONE: installer switched from rish to adb (seed reads and install). If adb is unavailable the installer falls back to a full download (no seed); rish cannot substitute because it shares adb's bootstrap.
 3. DONE: run 6 delta-installed on the tablet (2026-11-25T10:47Z).
-4. DONE (user-reported): run 6 launches and works; primaryCpuAbi=armeabi-v7a confirmed.
+4. DONE: run 6 launches and works (user-reported; logcat check 2026-11-26T06:06Z: alive past 15 s, no crash lines); primaryCpuAbi=armeabi-v7a confirmed.
 5. DONE: update tracking set up: `filen_delta --latest` and the weekly scheduled check (build-ci.md).
 6. On the tablet: pull, then test an upload and a download in the app. — user
 7. Only if a crash returns: download libfilen_sdk_rs-armv7-unstripped.so.gz (to the Claude workspace, not the tablet) and symbolicate the tombstone pcs. — Opus
