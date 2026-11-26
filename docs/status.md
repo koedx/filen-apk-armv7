@@ -5,7 +5,6 @@
 - The mechanism by which a null future handle reaches rust_future_free_pointer (crash-triage.md).
 - Installer paths not yet exercised on the tablet: the mid-assembly seed-failure fallback, the full-download fallback, and the progress bar (the 2026-11-25T10:47Z run predates it; the in-place redraw on a terminal is untested).
 - The loopback adb connection survives until reboot or until adb over TCP is restarted; after that the installer tries `adb connect localhost:5555` once and otherwise falls back to a full download.
-
 - Run 6 "loads and functions as expected" is the user's report (2026-11-26T05:55Z); uploads and downloads are untried and no logcat was captured.
 - The weekly scheduled check ("Filen upstream release check") and `filen_delta --latest` against the real GitHub API have not run yet; `--latest` was tested only against a mock.
 

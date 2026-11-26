@@ -10,7 +10,7 @@ Canonical copy: this `docs/` folder in koedx/filen-apk-armv7. The claude.ai Proj
 |---|---|
 | environment.md | Target device, constraints, network, tooling |
 | build-ci.md | Repo, workflow, dispatch, ABI config, release assets, run history |
-| crash-triage.md | Current crash (run 5 SIGSEGV) — facts, root-cause candidate, ruled-out causes |
+| crash-triage.md | Run 5 SIGSEGV (fixed in run 6, user-reported) — facts, root-cause candidate, ruled-out causes |
 | delta-installer.md | Design and usage of the single-range delta installer (code in tools/delta/) |
 | status.md | UNVERIFIED claims, open questions, next steps (ordered) |
 | decisions.md | Append-only decision log |
